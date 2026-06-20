@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<template id="__bundler_thumbnail" data-bg-color="#181a18">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#181a18"/>
+    <rect x="420" y="300" width="360" height="200" rx="44" fill="url(#g)"/>
+    <text x="600" y="438" font-family="sans-serif" font-size="150" font-weight="800" fill="#ffffff" text-anchor="middle">瑰</text>
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a9c74"/><stop offset="1" stop-color="#c2703d"/></linearGradient></defs>
+  </svg>
+</template>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb{ background:#d4d4cd; border-radius:8px; border:3px solid transparent; background-clip:content-box; }
+  ::-webkit-scrollbar-thumb:hover{ background:#bbbbb2; background-clip:content-box; }
+  @keyframes fadeUp{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:none;} }
+</style>
+</helmet>
+
+<div ref="{{ setRoot }}" style="--accent:#1f7a5c; --accent-soft:#1f7a5c1c; --accent-strong:#175f47; --clay:#c2703d; --bg:#f6f6f3; --card:#ffffff; --ink:#1a1d1b; --muted:#6b716d; --line:#e8e8e2; --sidebar:#181a18; display:grid; grid-template-columns:250px 1fr; height:100vh; width:100%; background:var(--bg); color:var(--ink); font-family:'Manrope',-apple-system,system-ui,sans-serif; font-feature-settings:'tnum' 1; overflow:hidden;">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside style="background:var(--sidebar); display:flex; flex-direction:column; padding:18px 14px; gap:2px; min-height:0; overflow-y:auto;">
+    <div style="display:flex; align-items:center; gap:11px; padding:6px 10px 16px;">
+      <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(140deg,#2a9c74,#c2703d); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px rgba(31,122,92,.35); flex:none;">
+        <span style="color:#fff; font-weight:800; font-size:15px; letter-spacing:-.5px;">瑰</span>
+      </div>
+      <div style="display:flex; flex-direction:column; line-height:1.15;">
+        <span style="color:#fff; font-weight:700; font-size:15px; letter-spacing:.5px;">GUIYE 瑰野</span>
+        <span style="color:#727872; font-weight:500; font-size:10.5px;">订单 · 渠道 · 履约中台</span>
+      </div>
+    </div>
+
+    <span style="color:#565b56; font-size:10px; font-weight:700; letter-spacing:1px; padding:8px 12px 5px;">运营</span>
+    <div onClick="{{ navTo }}" data-k="home" style="{{ navStyles.home }}" style-hover="background:rgba(255,255,255,.06)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+      <span>首页概览</span>
+    </div>
+    <div onClick="{{ navTo }}" data-k="orders" style="{{ navStyles.orders }}" style-hover="background:rgba(255,255,255,.06)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      <span>订单中心</span>
+      <span style="margin-left:auto; background:var(--accent); color:#fff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px;">128</span>
+    </div>
+    <div onClick="{{ navTo }}" data-k="channel" style="{{ navStyles.channel }}" style-hover="background:rgba(255,255,255,.06)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      <span>渠道管理</span>
+      <span style="margin-left:auto; background:#a04437; color:#fff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px;">5</span>
+    </div>
+    <div onClick="{{ navTo }}" data-k="inventory" style="{{ navStyles.inventory }}" style-hover="background:rgba(255,255,255,.06)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+      <span>商品库存</span>
+    </div>
+    <div onClick="{{ navTo }}" data-k="crm" style="{{ navStyles.crm }}" style-hover="background:rgba(255,255,255,.06)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>客户中心</span>
+    </div>
+
+    <span style="color:#565b56; font-size:10px; font-weight:700; letter-spacing:1px; padding:14px 12px 5px;">履约与分析</span>
+    <div onClick="{{ navTo }}" data-k="logistics" style="{{ navStyles.logistics }}" style-hover="background:rgba(255,255,255,.06)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v11"/><path d="M15 8h4l3 3v6a1 1 0 0 1-1 1h-2"/><circle cx="7.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/></svg>
+      <span>物流财务</span>
+      <span style="margin-left:auto; background:#a04437; color:#fff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px;">3</span>
+    </div>
+    <div onClick="{{ navTo }}" data-k="brand" style="{{ navStyles.brand }}" style-hover="background:rgba(255,255,255,.06)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+      <span>品牌资料</span>
+    </div>
+    <div onClick="{{ navTo }}" data-k="analytics" style="{{ navStyles.analytics }}" style-hover="background:rgba(255,255,255,.06)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+      <span>数据分析</span>
+    </div>
+    <div onClick="{{ navTo }}" data-k="settings" style="{{ navStyles.settings }}" style-hover="background:rgba(255,255,255,.06)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>系统设置</span>
+    </div>
+
+    <div style="margin-top:auto; display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:11px; background:rgba(255,255,255,.04);">
+      <div style="width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#2a9c74,#175f47); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; flex:none;">陈</div>
+      <div style="display:flex; flex-direction:column; line-height:1.2; min-width:0;">
+        <span style="color:#e7e8e5; font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">陈思远</span>
+        <span style="color:#727872; font-size:10.5px;">超级管理员</span>
+      </div>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#727872" stroke-width="2" stroke-linecap="round" style="margin-left:auto; flex:none;"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main style="display:flex; flex-direction:column; min-width:0; min-height:0;">
+    <header style="display:flex; align-items:center; gap:16px; padding:16px 28px; border-bottom:1px solid var(--line); background:var(--card); flex:none;">
+      <div style="display:flex; flex-direction:column; gap:2px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <h1 style="margin:0; font-size:19px; font-weight:700; letter-spacing:-.3px;">{{ pageTitle }}</h1>
+          <span style="font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:2px 9px; border-radius:20px;">实时</span>
+        </div>
+        <span style="font-size:12.5px; color:var(--muted);">{{ pageSubtitle }}</span>
+      </div>
+
+      <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
+        <div style="display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:8px 12px; width:230px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9a9f9a" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input placeholder="搜索订单 / 客户 / 经销商" style="border:none; background:none; outline:none; font-family:inherit; font-size:13px; color:var(--ink); width:100%;" />
+          <span style="font-size:10.5px; color:#9a9f9a; border:1px solid var(--line); border-radius:5px; padding:1px 5px; flex:none;">⌘K</span>
+        </div>
+        <button style="position:relative; width:38px; height:38px; border-radius:10px; border:1px solid var(--line); background:var(--card); cursor:pointer; display:flex; align-items:center; justify-content:center;" style-hover="background:var(--bg)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4b524d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span style="position:absolute; top:7px; right:8px; min-width:15px; height:15px; padding:0 3px; border-radius:8px; background:#c0392b; color:#fff; font-size:9.5px; font-weight:700; display:flex; align-items:center; justify-content:center; border:1.5px solid var(--card);">9</span>
+        </button>
+        <button style="display:flex; align-items:center; gap:8px; height:38px; padding:0 16px; border-radius:10px; border:none; background:var(--accent); color:#fff; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; box-shadow:0 2px 8px var(--accent-soft);" style-hover="background:var(--accent-strong)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          导出报表
+        </button>
+      </div>
+    </header>
+
+    <div style="flex:1; overflow-y:auto; padding:22px 28px 40px; min-height:0;">
+
+      <!-- KPI ROW -->
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+        <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:17px 18px 13px; display:flex; flex-direction:column; gap:11px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:12.5px; color:var(--muted); font-weight:500;">销售额（GMV）· 本月</span>
+            <div style="width:28px; height:28px; border-radius:8px; background:var(--accent-soft); display:flex; align-items:center; justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+          </div>
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:6px;">
+            <div style="display:flex; flex-direction:column; gap:5px;">
+              <span style="font-size:24px; font-weight:800; letter-spacing:-.5px; line-height:1;">¥1,284,560</span>
+              <span style="font-size:11.5px; color:var(--muted);">实收 <b style="color:var(--ink); font-weight:700;">¥1,196,200</b></span>
+            </div>
+            <svg width="74" height="34" viewBox="0 0 74 34" preserveAspectRatio="none" style="flex:none;"><path d="{{ spark1 }}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span style="display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:600; color:#16894f;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 14 12 9 17 14"/></svg>12.4% <span style="color:var(--muted); font-weight:500;">较上月</span></span>
+        </div>
+
+        <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:17px 18px 13px; display:flex; flex-direction:column; gap:11px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:12.5px; color:var(--muted); font-weight:500;">订单数 · 本月</span>
+            <div style="width:28px; height:28px; border-radius:8px; background:#fff5ec; display:flex; align-items:center; justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c2703d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
+          </div>
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:6px;">
+            <div style="display:flex; flex-direction:column; gap:5px;">
+              <span style="font-size:24px; font-weight:800; letter-spacing:-.5px; line-height:1;">3,642</span>
+              <span style="font-size:11.5px; color:var(--muted);">待发货 <b style="color:var(--ink); font-weight:700;">128</b></span>
+            </div>
+            <svg width="74" height="34" viewBox="0 0 74 34" preserveAspectRatio="none" style="flex:none;"><path d="{{ spark2 }}" fill="none" stroke="#c2703d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span style="display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:600; color:#16894f;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 14 12 9 17 14"/></svg>8.1% <span style="color:var(--muted); font-weight:500;">较上月</span></span>
+        </div>
+
+        <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:17px 18px 13px; display:flex; flex-direction:column; gap:11px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:12.5px; color:var(--muted); font-weight:500;">退款金额 · 本月</span>
+            <div style="width:28px; height:28px; border-radius:8px; background:#fdf0ef; display:flex; align-items:center; justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
+          </div>
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:6px;">
+            <div style="display:flex; flex-direction:column; gap:5px;">
+              <span style="font-size:24px; font-weight:800; letter-spacing:-.5px; line-height:1;">¥23,180</span>
+              <span style="font-size:11.5px; color:var(--muted);">退款率 <b style="color:var(--ink); font-weight:700;">1.82%</b></span>
+            </div>
+            <svg width="74" height="34" viewBox="0 0 74 34" preserveAspectRatio="none" style="flex:none;"><path d="{{ spark3 }}" fill="none" stroke="#c0392b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span style="display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:600; color:#16894f;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 10 12 15 17 10"/></svg>0.4% <span style="color:var(--muted); font-weight:500;">同比下降</span></span>
+        </div>
+
+        <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:17px 18px 13px; display:flex; flex-direction:column; gap:11px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:12.5px; color:var(--muted); font-weight:500;">客单价 / 毛利率</span>
+            <div style="width:28px; height:28px; border-radius:8px; background:#eef4ff; display:flex; align-items:center; justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2b6cb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg></div>
+          </div>
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:6px;">
+            <div style="display:flex; flex-direction:column; gap:5px;">
+              <span style="font-size:24px; font-weight:800; letter-spacing:-.5px; line-height:1;">¥352.7</span>
+              <span style="font-size:11.5px; color:var(--muted);">毛利率 <b style="color:var(--ink); font-weight:700;">54.6%</b> · 复购 <b style="color:var(--ink); font-weight:700;">31%</b></span>
+            </div>
+            <svg width="74" height="34" viewBox="0 0 74 34" preserveAspectRatio="none" style="flex:none;"><path d="{{ spark4 }}" fill="none" stroke="#2b6cb0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span style="display:inline-flex; align-items:center; gap:3px; font-size:11.5px; font-weight:600; color:#16894f;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 14 12 9 17 14"/></svg>5.2% <span style="color:var(--muted); font-weight:500;">客单价提升</span></span>
+        </div>
+      </div>
+
+      <!-- BUSINESS PIPELINE -->
+      <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 22px; margin-top:16px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span style="font-size:14.5px; font-weight:700;">业务主流程</span>
+          <span style="font-size:12px; color:var(--muted);">订单进入 → 财务结算 · 各环节当前待处理量</span>
+        </div>
+        <div style="display:flex; align-items:stretch; gap:0;">
+          <sc-for list="{{ pipeline }}" as="p" hint-placeholder-count="7">
+            <div style="display:flex; align-items:center; flex:1; min-width:0;">
+              <div style="flex:1; display:flex; flex-direction:column; gap:7px; padding:0 4px; min-width:0;">
+                <div style="display:flex; align-items:center; gap:7px;">
+                  <span style="width:20px; height:20px; border-radius:6px; background:{{ p.bg }}; color:{{ p.color }}; font-size:10.5px; font-weight:800; display:flex; align-items:center; justify-content:center; flex:none;">{{ p.step }}</span>
+                  <span style="font-size:12px; font-weight:600; color:#3a403c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.title }}</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:2px; padding-left:1px;">
+                  <span style="font-size:21px; font-weight:800; letter-spacing:-.5px; line-height:1; color:{{ p.color }};">{{ p.count }}</span>
+                  <span style="font-size:10.5px; color:var(--muted);">{{ p.sub }}</span>
+                </div>
+                <div style="height:3px; border-radius:3px; background:{{ p.bg }};"></div>
+              </div>
+              <sc-if value="{{ p.notLast }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9cdc6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:none; margin:0 2px;"><polyline points="9 18 15 12 9 6"/></svg>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- ROW: chart + channel donut -->
+      <div style="display:grid; grid-template-columns:1.85fr 1fr; gap:16px; margin-top:16px;">
+        <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div style="display:flex; flex-direction:column; gap:3px;">
+              <span style="font-size:15px; font-weight:700;">{{ chartTitle }}</span>
+              <span style="font-size:12px; color:var(--muted);">数据截至今日 18:00 · 含全部渠道</span>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <div style="display:flex; gap:2px; background:var(--bg); padding:3px; border-radius:9px;">
+                <button onClick="{{ onMetric }}" data-m="sales" style="{{ metricStyles.sales }}">销售额</button>
+                <button onClick="{{ onMetric }}" data-m="orders" style="{{ metricStyles.orders }}">订单数</button>
+                <button onClick="{{ onMetric }}" data-m="received" style="{{ metricStyles.received }}">实收</button>
+              </div>
+              <div style="display:flex; gap:2px; background:var(--bg); padding:3px; border-radius:9px;">
+                <button onClick="{{ onRange }}" data-r="today" style="{{ rangeStyles.today }}">今日</button>
+                <button onClick="{{ onRange }}" data-r="7" style="{{ rangeStyles.r7 }}">7天</button>
+                <button onClick="{{ onRange }}" data-r="30" style="{{ rangeStyles.r30 }}">30天</button>
+              </div>
+            </div>
+          </div>
+          <div style="position:relative; margin-top:16px;">
+            <svg viewBox="0 0 800 280" width="100%" height="276" preserveAspectRatio="none" onMouseLeave="{{ onChartLeave }}" style="display:block; overflow:visible;">
+              <defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity="0.16"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+              <sc-for list="{{ gridLines }}" as="g" hint-placeholder-count="4"><line x1="8" y1="{{ g.y }}" x2="792" y2="{{ g.y }}" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 5"/></sc-for>
+              <path d="{{ chartArea }}" fill="url(#areaFill)"/>
+              <path d="{{ chartLine }}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <sc-for list="{{ axisTicks }}" as="t" hint-placeholder-count="6"><text x="{{ t.x }}" y="274" fill="#9a9f9a" font-size="11" font-family="Manrope" text-anchor="middle">{{ t.text }}</text></sc-for>
+              <sc-if value="{{ showHover }}">
+                <line x1="{{ hov.x }}" y1="22" x2="{{ hov.x }}" y2="250" stroke="var(--accent)" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
+                <circle cx="{{ hov.x }}" cy="{{ hov.y }}" r="5.5" fill="#fff" stroke="var(--accent)" stroke-width="2.5"/>
+                <rect x="{{ hov.boxX }}" y="2" width="{{ hov.boxW }}" height="40" rx="8" fill="#20251f"/>
+                <text x="{{ hov.textX }}" y="18" fill="#c6cabf" font-size="10.5" font-family="Manrope" text-anchor="middle">{{ hov.dateText }}</text>
+                <text x="{{ hov.textX }}" y="34" fill="#fff" font-size="13" font-weight="700" font-family="Manrope" text-anchor="middle">{{ hov.valText }}</text>
+              </sc-if>
+              <sc-for list="{{ hoverCols }}" as="c" hint-placeholder-count="0"><rect x="{{ c.x }}" y="20" width="{{ c.w }}" height="230" fill="transparent" data-idx="{{ c.idx }}" onMouseEnter="{{ onHover }}" style="cursor:crosshair;"/></sc-for>
+            </svg>
+          </div>
+        </div>
+
+        <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px 22px; display:flex; flex-direction:column;">
+          <span style="font-size:15px; font-weight:700;">渠道占比</span>
+          <span style="font-size:12px; color:var(--muted); margin-top:3px;">本月订单来源分布</span>
+          <div style="display:flex; align-items:center; justify-content:center; margin:10px 0 4px;">
+            <svg width="158" height="158" viewBox="0 0 172 172">
+              <g transform="rotate(-90 86 86)">
+                <circle cx="86" cy="86" r="58" fill="none" stroke="var(--bg)" stroke-width="17"/>
+                <sc-for list="{{ donutSegs }}" as="s" hint-placeholder-count="7"><circle cx="86" cy="86" r="58" fill="none" stroke="{{ s.color }}" stroke-width="17" stroke-dasharray="{{ s.dasharray }}" stroke-dashoffset="{{ s.dashoffset }}" stroke-linecap="butt"/></sc-for>
+              </g>
+              <text x="86" y="80" text-anchor="middle" font-size="25" font-weight="800" font-family="Manrope" fill="#1a1d1b">3,642</text>
+              <text x="86" y="99" text-anchor="middle" font-size="11" font-family="Manrope" fill="#6b716d">总订单</text>
+            </svg>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:7px; margin-top:6px;">
+            <sc-for list="{{ channels }}" as="c" hint-placeholder-count="7">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="width:8px; height:8px; border-radius:3px; background:{{ c.color }}; flex:none;"></span>
+                <span style="font-size:12.5px; color:#3a403c; font-weight:500;">{{ c.label }}</span>
+                <span style="margin-left:auto; font-size:12.5px; font-weight:700;">{{ c.valText }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW: alerts + warehouses + top SKU -->
+      <div style="display:grid; grid-template-columns:1fr 1.15fr 0.95fr; gap:16px; margin-top:16px;">
+        <!-- alerts -->
+        <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+            <span style="font-size:15px; font-weight:700;">待办与异常</span>
+            <span style="font-size:11px; font-weight:700; color:#c0392b; background:#fdf0ef; padding:2px 9px; border-radius:20px;">11 项待处理</span>
+          </div>
+          <div style="display:flex; flex-direction:column; margin-top:8px;">
+            <div style="display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px solid var(--line);" style-hover="background:var(--bg)">
+              <div style="width:32px; height:32px; border-radius:9px; background:#fdf0ef; color:#c0392b; display:flex; align-items:center; justify-content:center; flex:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+              <div style="display:flex; flex-direction:column; gap:1px; min-width:0;"><span style="font-size:13px; font-weight:600; color:#2c322e;">经销商超时未确认</span><span style="font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Maison Vert 等 5 家 · 超 24h</span></div>
+              <span style="margin-left:auto; font-size:16px; font-weight:800; color:#c0392b; flex:none;">5</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px solid var(--line);" style-hover="background:var(--bg)">
+              <div style="width:32px; height:32px; border-radius:9px; background:#fff7ec; color:#b45309; display:flex; align-items:center; justify-content:center; flex:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v11"/><path d="M15 8h4l3 3v6a1 1 0 0 1-1 1h-2"/><circle cx="7.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/></svg></div>
+              <div style="display:flex; flex-direction:column; gap:1px; min-width:0;"><span style="font-size:13px; font-weight:600; color:#2c322e;">物流异常包裹</span><span style="font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">清关异常 2 · 破损 1</span></div>
+              <span style="margin-left:auto; font-size:16px; font-weight:800; color:#b45309; flex:none;">3</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px solid var(--line);" style-hover="background:var(--bg)">
+              <div style="width:32px; height:32px; border-radius:9px; background:#fff7ec; color:#b45309; display:flex; align-items:center; justify-content:center; flex:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/></svg></div>
+              <div style="display:flex; flex-direction:column; gap:1px; min-width:0;"><span style="font-size:13px; font-weight:600; color:#2c322e;">库存低于安全线</span><span style="font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">杨梅果酒 等 4 个 SKU</span></div>
+              <span style="margin-left:auto; font-size:16px; font-weight:800; color:#b45309; flex:none;">4</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px solid var(--line);" style-hover="background:var(--bg)">
+              <div style="width:32px; height:32px; border-radius:9px; background:#fdf0ef; color:#c0392b; display:flex; align-items:center; justify-content:center; flex:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
+              <div style="display:flex; flex-direction:column; gap:1px; min-width:0;"><span style="font-size:13px; font-weight:600; color:#2c322e;">客户退款申请</span><span style="font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">待财务 / 客服处理</span></div>
+              <span style="margin-left:auto; font-size:16px; font-weight:800; color:#c0392b; flex:none;">7</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:11px; padding:11px 0; border-bottom:1px solid var(--line);" style-hover="background:var(--bg)">
+              <div style="width:32px; height:32px; border-radius:9px; background:#fdf0ef; color:#c0392b; display:flex; align-items:center; justify-content:center; flex:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg></div>
+              <div style="display:flex; flex-direction:column; gap:1px; min-width:0;"><span style="font-size:13px; font-weight:600; color:#2c322e;">经销商欠款超期</span><span style="font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">US West 等 2 家逾期</span></div>
+              <span style="margin-left:auto; font-size:16px; font-weight:800; color:#c0392b; flex:none;">2</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:11px; padding:11px 0;" style-hover="background:var(--bg)">
+              <div style="width:32px; height:32px; border-radius:9px; background:#eef4ff; color:#2b6cb0; display:flex; align-items:center; justify-content:center; flex:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"/><path d="M14 2v6h6"/></svg></div>
+              <div style="display:flex; flex-direction:column; gap:1px; min-width:0;"><span style="font-size:13px; font-weight:600; color:#2c322e;">合同即将到期</span><span style="font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">30 天内 1 份待续签</span></div>
+              <span style="margin-left:auto; font-size:16px; font-weight:800; color:#2b6cb0; flex:none;">1</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- warehouses -->
+        <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+            <span style="font-size:15px; font-weight:700;">多仓库存</span>
+            <div style="display:flex; align-items:center; gap:12px; font-size:11px; color:var(--muted);">
+              <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:var(--accent);"></span>可售</span>
+              <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#e0a44a;"></span>锁定</span>
+              <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:8px;height:8px;border-radius:2px;background:#cdd2cb;"></span>在途</span>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:15px; margin-top:14px;">
+            <sc-for list="{{ warehouses }}" as="w" hint-placeholder-count="4">
+              <div style="display:flex; flex-direction:column; gap:7px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:13px; font-weight:600; color:#2c322e;">{{ w.name }}</span>
+                  <span style="font-size:10.5px; color:var(--muted); background:var(--bg); padding:1px 7px; border-radius:5px;">{{ w.code }}</span>
+                  <sc-if value="{{ w.hasLow }}"><span style="font-size:10.5px; font-weight:600; color:#c0392b; background:#fdf0ef; padding:1px 7px; border-radius:5px;">{{ w.lowText }}</span></sc-if>
+                  <span style="margin-left:auto; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;">{{ w.total }}</span>
+                </div>
+                <div style="display:flex; height:8px; border-radius:5px; overflow:hidden; background:var(--bg);">
+                  <div style="background:var(--accent); width:{{ w.wSell }};"></div>
+                  <div style="background:#e0a44a; width:{{ w.wLock }};"></div>
+                  <div style="background:#cdd2cb; width:{{ w.wTransit }};"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- top SKU -->
+        <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+            <span style="font-size:15px; font-weight:700;">热销 SKU</span>
+            <span style="font-size:11.5px; color:var(--accent); font-weight:600; cursor:pointer;" style-hover="text-decoration:underline">全部 →</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:13px; margin-top:12px;">
+            <sc-for list="{{ topSku }}" as="p" hint-placeholder-count="5">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <span style="width:20px; height:20px; border-radius:6px; background:{{ p.rankBg }}; color:{{ p.rankColor }}; display:inline-flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:800; flex:none;">{{ p.rank }}</span>
+                  <span style="font-size:12.5px; font-weight:600; color:#2c322e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.name }}</span>
+                  <span style="margin-left:auto; font-size:12px; font-weight:700; flex:none;">{{ p.units }}</span>
+                </div>
+                <div style="height:5px; border-radius:5px; background:var(--bg); overflow:hidden;"><div style="height:100%; border-radius:5px; background:{{ p.barColor }}; width:{{ p.pct }};"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW: recent orders -->
+      <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 22px 8px; margin-top:16px; min-width:0;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <div style="display:flex; flex-direction:column; gap:3px;">
+            <span style="font-size:15px; font-weight:700;">最近订单</span>
+            <span style="font-size:12px; color:var(--muted);">来自全部渠道的最新交易</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button style="display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:#3a403c; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:7px 12px; cursor:pointer; font-family:inherit;" style-hover="background:#eeeee9"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>筛选</button>
+            <button style="font-size:12.5px; font-weight:600; color:var(--accent); background:var(--accent-soft); border:none; border-radius:8px; padding:7px 14px; cursor:pointer; font-family:inherit;">查看全部</button>
+          </div>
+        </div>
+        <table style="width:100%; border-collapse:collapse;">
+          <thead><tr>
+            <th style="text-align:left; font-size:11px; font-weight:600; color:#9a9f9a; padding:10px 8px; border-bottom:1px solid var(--line);">订单号</th>
+            <th style="text-align:left; font-size:11px; font-weight:600; color:#9a9f9a; padding:10px 8px; border-bottom:1px solid var(--line);">客户 / 国家</th>
+            <th style="text-align:left; font-size:11px; font-weight:600; color:#9a9f9a; padding:10px 8px; border-bottom:1px solid var(--line);">来源</th>
+            <th style="text-align:left; font-size:11px; font-weight:600; color:#9a9f9a; padding:10px 8px; border-bottom:1px solid var(--line);">发货方</th>
+            <th style="text-align:right; font-size:11px; font-weight:600; color:#9a9f9a; padding:10px 8px; border-bottom:1px solid var(--line);">金额</th>
+            <th style="text-align:center; font-size:11px; font-weight:600; color:#9a9f9a; padding:10px 8px; border-bottom:1px solid var(--line);">状态</th>
+          </tr></thead>
+          <tbody>
+            <sc-for list="{{ orders }}" as="o" hint-placeholder-count="6">
+              <tr style-hover="background:var(--bg)" style="transition:background .12s;">
+                <td style="padding:11px 8px; border-bottom:1px solid var(--line); font-size:12.5px; font-weight:600; font-variant-numeric:tabular-nums;">{{ o.id }}</td>
+                <td style="padding:11px 8px; border-bottom:1px solid var(--line); font-size:12.5px;">
+                  <div style="display:flex; align-items:center; gap:9px;">
+                    <span style="width:26px; height:26px; border-radius:50%; background:{{ o.avBg }}; color:{{ o.avColor }}; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex:none;">{{ o.avChar }}</span>
+                    <div style="display:flex; flex-direction:column; line-height:1.25;"><span style="font-weight:600; color:#2c322e;">{{ o.customer }}</span><span style="font-size:10.5px; color:var(--muted);">{{ o.country }}</span></div>
+                  </div>
+                </td>
+                <td style="padding:11px 8px; border-bottom:1px solid var(--line);"><span style="font-size:11px; font-weight:600; color:{{ o.srcColor }}; background:{{ o.srcBg }}; padding:3px 9px; border-radius:6px; white-space:nowrap;">{{ o.source }}</span></td>
+                <td style="padding:11px 8px; border-bottom:1px solid var(--line); font-size:12.5px; color:#4a514c;">{{ o.shipFrom }}</td>
+                <td style="padding:11px 8px; border-bottom:1px solid var(--line); font-size:12.5px; font-weight:700; text-align:right; font-variant-numeric:tabular-nums;">{{ o.amount }}</td>
+                <td style="padding:11px 8px; border-bottom:1px solid var(--line); text-align:center;"><span style="display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:{{ o.statusColor }}; background:{{ o.statusBg }}; padding:4px 10px; border-radius:20px; white-space:nowrap;"><span style="width:6px; height:6px; border-radius:50%; background:{{ o.statusColor }};"></span>{{ o.statusText }}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1340,&quot;height&quot;:900},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1f7a5c&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;defaultMetric&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;sales&quot;,&quot;orders&quot;,&quot;received&quot;],&quot;default&quot;:&quot;sales&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;defaultRange&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;today&quot;,&quot;7&quot;,&quot;30&quot;],&quot;default&quot;:&quot;30&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  state = {
+    nav: 'home',
+    metric: this.props.defaultMetric || 'sales',
+    range: this.props.defaultRange || '30',
+    hover: null,
+  };
+
+  componentDidMount(){ this.applyAccent(); }
+  componentDidUpdate(){ this.applyAccent(); }
+  applyAccent(){
+    const a = this.props.accentColor;
+    if (a && this.root){
+      this.root.style.setProperty('--accent', a);
+      this.root.style.setProperty('--accent-soft', a + '1c');
+      this.root.style.setProperty('--accent-strong', a);
+    }
+  }
+
+  genSeries(metric, n){
+    const seedMap = { sales: 7, orders: 31, received: 53 };
+    let s = (seedMap[metric] || 11) * 1000 + n;
+    const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+    const baseMap = { sales: [22000, 52000], orders: [70, 210], received: [20000, 49000] };
+    const [lo, hi] = baseMap[metric] || [100, 500];
+    const out = []; let v = (lo + hi) / 2;
+    for (let i = 0; i < n; i++){
+      v += (rnd() - 0.46) * (hi - lo) * 0.16;
+      v = Math.max(lo * 0.7, Math.min(hi * 1.08, v));
+      out.push(Math.round(v));
+    }
+    return out;
+  }
+
+  fmtVal(metric, v){
+    if (metric === 'orders') return Math.round(v).toLocaleString() + ' 单';
+    return '¥' + Math.round(v).toLocaleString();
+  }
+
+  buildChart(vals){
+    const W = 800, H = 280, pl = 10, pr = 10, pt = 24, pb = 34;
+    const innerW = W - pl - pr, innerH = H - pt - pb;
+    const max = Math.max(...vals), min = Math.min(...vals), span = (max - min) || 1;
+    const X = i => pl + innerW * (i / (vals.length - 1));
+    const Y = v => pt + innerH * (1 - (v - min) / span);
+    const pts = vals.map((v, i) => [X(i), Y(v)]);
+    let line = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+    for (let i = 0; i < pts.length - 1; i++){
+      const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], cx = (x0 + x1) / 2;
+      line += ` C ${cx.toFixed(1)} ${y0.toFixed(1)}, ${cx.toFixed(1)} ${y1.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+    }
+    const area = line + ` L ${pts[pts.length - 1][0].toFixed(1)} ${H - pb} L ${pts[0][0].toFixed(1)} ${H - pb} Z`;
+    return { line, area, pts, X, Y, W, H, pt, pb, innerW };
+  }
+
+  buildSpark(vals){
+    const W = 74, H = 34, p = 4;
+    const max = Math.max(...vals), min = Math.min(...vals), span = (max - min) || 1;
+    let d = '';
+    vals.forEach((v, i) => {
+      const x = p + (W - 2 * p) * (i / (vals.length - 1));
+      const y = p + (H - 2 * p) * (1 - (v - min) / span);
+      d += (i === 0 ? 'M ' : ' L ') + x.toFixed(1) + ' ' + y.toFixed(1);
+    });
+    return d;
+  }
+
+  labelFor(range, n, i){
+    if (range === 'today') return (i) + ':00';
+    const d = new Date(2026, 5, 20);
+    d.setDate(d.getDate() - (n - 1 - i));
+    return (d.getMonth() + 1) + '/' + d.getDate();
+  }
+
+  renderVals(){
+    const { metric, range, hover } = this.state;
+    const n = range === 'today' ? 24 : parseInt(range, 10);
+    const vals = this.genSeries(metric, n);
+    const chart = this.buildChart(vals);
+
+    const gridLines = [0, 1, 2, 3].map(k => ({ y: (chart.pt + (chart.H - chart.pt - chart.pb) * k / 3).toFixed(1) }));
+
+    const tickCount = Math.min(6, n);
+    const axisTicks = [];
+    for (let k = 0; k < tickCount; k++){
+      const i = Math.round(k * (n - 1) / (tickCount - 1));
+      axisTicks.push({ x: chart.X(i).toFixed(1), text: this.labelFor(range, n, i) });
+    }
+
+    const seg = chart.innerW / Math.max(1, n - 1);
+    const hoverCols = vals.map((v, i) => ({ x: (chart.X(i) - seg / 2).toFixed(1), w: seg.toFixed(1), idx: i }));
+
+    let showHover = false, hov = { x: 0, y: 0, boxX: 0, boxW: 0, textX: 0, dateText: '', valText: '' };
+    if (hover != null && hover >= 0 && hover < n){
+      const x = chart.X(hover), y = chart.Y(vals[hover]);
+      const valText = this.fmtVal(metric, vals[hover]);
+      const boxW = Math.max(80, valText.length * 8.5 + 20);
+      let boxX = Math.max(6, Math.min(chart.W - boxW - 6, x - boxW / 2));
+      showHover = true;
+      hov = { x: x.toFixed(1), y: y.toFixed(1), boxX: boxX.toFixed(1), boxW: boxW.toFixed(1), textX: (boxX + boxW / 2).toFixed(1), dateText: this.labelFor(range, n, hover), valText };
+    }
+
+    const spark1 = this.buildSpark(this.genSeries('sales', 16));
+    const spark2 = this.buildSpark(this.genSeries('orders', 16));
+    const spark3 = this.buildSpark([9, 7, 11, 6, 8, 5, 7, 4, 6, 5, 7, 4, 5, 3, 4, 3]);
+    const spark4 = this.buildSpark(this.genSeries('received', 16));
+
+    // pipeline
+    const tones = {
+      accent: { color: 'var(--accent)', bg: 'var(--accent-soft)' },
+      amber: { color: '#b45309', bg: '#fff7ec' },
+      blue: { color: '#1d4ed8', bg: '#eef4ff' },
+      red: { color: '#c0392b', bg: '#fdf0ef' },
+    };
+    const pipeRaw = [
+      { title: '订单进入', count: '1,284', sub: '本月新单', tone: 'accent' },
+      { title: '支付 / 审核', count: '86', sub: '待审核', tone: 'amber' },
+      { title: '匹配库存', count: '42', sub: '待分配', tone: 'blue' },
+      { title: '分配发货方', count: '73', sub: '备货中', tone: 'accent' },
+      { title: '填写物流', count: '128', sub: '待发货', tone: 'amber' },
+      { title: '签收 / 售后', count: '9', sub: '异常待处理', tone: 'red' },
+      { title: '财务结算', count: '64', sub: '待结算', tone: 'blue' },
+    ];
+    const pipeline = pipeRaw.map((p, i) => ({ step: i + 1, title: p.title, count: p.count, sub: p.sub, color: tones[p.tone].color, bg: tones[p.tone].bg, notLast: i < pipeRaw.length - 1 }));
+
+    // channels
+    const channels = [
+      { label: 'GUIYE 官网', val: 28, color: 'var(--accent)' },
+      { label: '经销商代下单', val: 22, color: '#c2703d' },
+      { label: '展会现场', val: 14, color: '#e0a44a' },
+      { label: 'WhatsApp', val: 12, color: '#2a9c74' },
+      { label: 'Instagram', val: 11, color: '#8a6fb0' },
+      { label: '微信 / 线下', val: 8, color: '#4a8fb8' },
+      { label: '批发订单', val: 5, color: '#cdd2cb' },
+    ].map(c => ({ ...c, valText: c.val + '%' }));
+    const C = 2 * Math.PI * 58; let acc = 0;
+    const donutSegs = channels.map(c => {
+      const len = c.val / 100 * C;
+      const s = { color: c.color, dasharray: `${len.toFixed(2)} ${(C - len).toFixed(2)}`, dashoffset: (-acc).toFixed(2) };
+      acc += len; return s;
+    });
+
+    // alerts
+    const ic = {
+      clock: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      truck: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v11"/><path d="M15 8h4l3 3v6a1 1 0 0 1-1 1h-2"/><circle cx="7.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/></svg>',
+      box: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/></svg>',
+      cash: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg>',
+      file: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"/><path d="M14 2v6h6"/></svg>',
+      refund: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>',
+    };
+    const alerts = [
+      { title: '经销商超时未确认', detail: 'Maison Vert 等 5 家 · 超 24h', count: 5, color: '#c0392b', bg: '#fdf0ef', icon: ic.clock },
+      { title: '物流异常包裹', detail: '清关异常 2 · 破损 1', count: 3, color: '#b45309', bg: '#fff7ec', icon: ic.truck },
+      { title: '库存低于安全线', detail: '杨梅果酒 等 4 个 SKU', count: 4, color: '#b45309', bg: '#fff7ec', icon: ic.box },
+      { title: '客户退款申请', detail: '待财务/客服处理', count: 7, color: '#c0392b', bg: '#fdf0ef', icon: ic.refund },
+      { title: '经销商欠款超期', detail: 'US West 等 2 家逾期', count: 2, color: '#c0392b', bg: '#fdf0ef', icon: ic.cash },
+      { title: '合同即将到期', detail: '30 天内 1 份待续签', count: 1, color: '#2b6cb0', bg: '#eef4ff', icon: ic.file },
+    ];
+
+    // warehouses
+    const whRaw = [
+      { name: '中国总部仓', code: 'CN · 杭州', sellable: 18420, locked: 2310, transit: 1560, low: 0 },
+      { name: '法国 / 欧洲仓', code: 'FR · 里昂', sellable: 6240, locked: 980, transit: 3120, low: 2 },
+      { name: '美国仓', code: 'US · 洛杉矶', sellable: 3180, locked: 540, transit: 1860, low: 1 },
+      { name: '经销商仓（合计）', code: '12 家', sellable: 5420, locked: 1120, transit: 640, low: 1 },
+    ];
+    const warehouses = whRaw.map(w => {
+      const total = w.sellable + w.locked + w.transit;
+      return {
+        name: w.name, code: w.code,
+        total: total.toLocaleString(),
+        wSell: (w.sellable / total * 100).toFixed(1) + '%',
+        wLock: (w.locked / total * 100).toFixed(1) + '%',
+        wTransit: (w.transit / total * 100).toFixed(1) + '%',
+        hasLow: w.low > 0,
+        lowText: w.low + ' SKU预警',
+      };
+    });
+
+    // top SKU
+    const skuRaw = [
+      { name: '瑰野·桂花酿米酒 500ml', units: 1842, pct: 100 },
+      { name: '瑰野·杨梅气泡果酒 6瓶', units: 1356, pct: 74 },
+      { name: '瑰野·青梅清酒礼盒', units: 980, pct: 56 },
+      { name: '瑰野·古法米酿 1.5L', units: 712, pct: 38 },
+      { name: '瑰野·荔枝玫瑰利口酒', units: 524, pct: 24 },
+    ];
+    const rankC = [
+      { bg: 'var(--accent-soft)', color: 'var(--accent)' },
+      { bg: '#fff5ec', color: '#c2703d' },
+      { bg: '#fdf6e8', color: '#b07d18' },
+      { bg: '#f1f2f0', color: '#6b716d' },
+      { bg: '#f1f2f0', color: '#6b716d' },
+    ];
+    const topSku = skuRaw.map((p, i) => ({
+      rank: i + 1, name: p.name, units: p.units.toLocaleString(), pct: p.pct + '%',
+      barColor: i === 0 ? 'var(--accent)' : i === 1 ? '#c2703d' : i === 2 ? '#e0a44a' : '#cdd2cb',
+      rankBg: rankC[i].bg, rankColor: rankC[i].color,
+    }));
+
+    // orders
+    const status = {
+      pending: { text: '待付款', color: '#6b716d', bg: '#f1f2f0' },
+      review: { text: '待审核', color: '#b45309', bg: '#fff7ec' },
+      assign: { text: '待分配', color: '#2b6cb0', bg: '#eef4ff' },
+      prep: { text: '备货中', color: '#8a6fb0', bg: '#f4f0fa' },
+      shipped: { text: '已发货', color: '#1f7a5c', bg: '#e9f5ef' },
+      signed: { text: '已签收', color: '#16894f', bg: '#e9f7ef' },
+      settled: { text: '已结算', color: '#4a514c', bg: '#eef0ed' },
+      refund: { text: '已退款', color: '#c0392b', bg: '#fdf0ef' },
+    };
+    const srcMap = {
+      web: { t: 'GUIYE 官网', c: '#1f7a5c', b: '#e9f5ef' },
+      dealer: { t: '经销商代下单', c: '#c2703d', b: '#fbf0e6' },
+      fair: { t: '展会现场', c: '#b07d18', b: '#fbf4e3' },
+      whatsapp: { t: 'WhatsApp', c: '#1f8a5b', b: '#e7f6ee' },
+      instagram: { t: 'Instagram', c: '#8a6fb0', b: '#f3eefa' },
+      wechat: { t: '微信', c: '#2f7d4f', b: '#e9f4ec' },
+      wholesale: { t: '批发订单', c: '#5b6470', b: '#eef0f2' },
+    };
+    const av = [
+      { bg: '#e7f1ec', color: '#1f7a5c' }, { bg: '#fbf0e6', color: '#b06028' },
+      { bg: '#fbf4e3', color: '#9a7016' }, { bg: '#f3eefa', color: '#6f53a0' },
+      { bg: '#eaf1f7', color: '#2b6cb0' }, { bg: '#fdeeec', color: '#b03a2e' },
+    ];
+    const ordersRaw = [
+      { id: '#GY-28471', customer: 'Camille Laurent', country: '法国 FR', items: '', amount: '¥1,186', src: 'dealer', ship: '法国/欧洲仓', st: 'shipped' },
+      { id: '#GY-28470', customer: '林晚晴', country: '中国 CN', items: '', amount: '¥386', src: 'web', ship: '中国总部仓', st: 'review' },
+      { id: '#GY-28469', customer: 'Michael Cho', country: '美国 US', items: '', amount: '¥2,680', src: 'wholesale', ship: '美国仓', st: 'assign' },
+      { id: '#GY-28468', customer: 'Hannah Weber', country: '德国 DE', items: '', amount: '¥857', src: 'instagram', ship: '法国/欧洲仓', st: 'prep' },
+      { id: '#GY-28467', customer: '周慕白', country: '中国 CN', items: '', amount: '¥188', src: 'fair', ship: '中国总部仓', st: 'refund' },
+      { id: '#GY-28466', customer: 'Sophie Martin', country: '法国 FR', items: '', amount: '¥1,536', src: 'whatsapp', ship: '经销商·Maison Vert', st: 'signed' },
+    ];
+    const orders = ordersRaw.map((o, i) => ({
+      id: o.id, customer: o.customer, country: o.country, amount: o.amount, shipFrom: o.ship,
+      avChar: o.customer[0], avBg: av[i % av.length].bg, avColor: av[i % av.length].color,
+      source: srcMap[o.src].t, srcColor: srcMap[o.src].c, srcBg: srcMap[o.src].b,
+      statusText: status[o.st].text, statusColor: status[o.st].color, statusBg: status[o.st].bg,
+    }));
+
+    // nav
+    const navStyle = on => `display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:9px; font-size:13.5px; font-weight:${on ? 600 : 500}; cursor:pointer; color:${on ? '#fff' : '#9aa098'}; background:${on ? 'rgba(255,255,255,.09)' : 'transparent'}; transition:all .14s;`;
+    const navKeys = ['home', 'orders', 'channel', 'inventory', 'crm', 'logistics', 'brand', 'analytics', 'settings'];
+    const navStyles = {};
+    navKeys.forEach(k => { navStyles[k] = navStyle(this.state.nav === k); });
+
+    const tabStyle = on => `padding:6px 13px; border-radius:7px; font-size:12.5px; font-weight:600; cursor:pointer; border:none; font-family:inherit; transition:all .14s; background:${on ? 'var(--card)' : 'transparent'}; color:${on ? 'var(--ink)' : 'var(--muted)'}; box-shadow:${on ? '0 1px 2px rgba(0,0,0,.07)' : 'none'};`;
+    const metricStyles = { sales: tabStyle(metric === 'sales'), orders: tabStyle(metric === 'orders'), received: tabStyle(metric === 'received') };
+    const rangeStyles = { today: tabStyle(range === 'today'), r7: tabStyle(range === '7'), r30: tabStyle(range === '30') };
+
+    const titleMap = {
+      home: { t: '首页概览', s: '掌握订单、渠道、库存与履约的全局动态' },
+      orders: { t: '订单中心', s: '查询、录单、分配与拆合单' },
+      channel: { t: '渠道管理', s: '经销商档案、授权、合同与结算' },
+      inventory: { t: '商品库存', s: '产品 SKU、多仓库存与批次追溯' },
+      crm: { t: '客户中心', s: '客户档案、销售线索与跟进' },
+      logistics: { t: '物流财务', s: '物流追踪、异常包裹、对账与发票' },
+      brand: { t: '品牌资料', s: '产品资料、图片视频与培训物料' },
+      analytics: { t: '数据分析', s: '销售、产品、渠道与库存分析' },
+      settings: { t: '系统设置', s: '权限、币种、税率与操作日志' },
+    };
+    const tm = titleMap[this.state.nav] || titleMap.home;
+
+    const metricName = { sales: '销售额趋势', orders: '订单量趋势', received: '实收金额趋势' }[metric];
+    const rangeName = { today: '今日（按小时）', '7': '近 7 天', '30': '近 30 天' }[range];
+
+    return {
+      setRoot: el => { this.root = el; },
+      navStyles,
+      navTo: e => { const k = e.currentTarget.dataset.k; if (k) this.setState({ nav: k }); },
+      pageTitle: tm.t, pageSubtitle: tm.s,
+      chartTitle: metricName + ' · ' + rangeName,
+      metricStyles, rangeStyles,
+      onMetric: e => { const m = e.currentTarget.dataset.m; if (m) this.setState({ metric: m, hover: null }); },
+      onRange: e => { const r = e.currentTarget.dataset.r; if (r) this.setState({ range: r, hover: null }); },
+      chartLine: chart.line, chartArea: chart.area,
+      gridLines, axisTicks, hoverCols,
+      onHover: e => { const i = parseInt(e.currentTarget.dataset.idx, 10); this.setState({ hover: i }); },
+      onChartLeave: () => this.setState({ hover: null }),
+      showHover, hov,
+      spark1, spark2, spark3, spark4,
+      pipeline, channels, donutSegs, alerts, warehouses, topSku, orders,
+    };
+  }
+}
+</script>
+</body>
+</html>
