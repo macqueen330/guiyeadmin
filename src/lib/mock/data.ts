@@ -15,6 +15,8 @@ import type {
   OrderItem,
   PipelineStage,
   Product,
+  ProductRank,
+  RegionRank,
   Settlement,
   Shipment,
   SystemUser,
@@ -224,23 +226,56 @@ export const pipeline: PipelineStage[] = [
   { title: "财务结算", count: "64", sub: "待结算", tone: "blue" },
 ];
 
-export const channels: ChannelSlice[] = [
-  { label: "GUIYE 官网", val: 28, color: "var(--accent)" },
-  { label: "经销商代下单", val: 22, color: "#c2703d" },
-  { label: "展会现场", val: 14, color: "#e0a44a" },
-  { label: "WhatsApp", val: 12, color: "#2a9c74" },
-  { label: "Instagram", val: 11, color: "#8a6fb0" },
-  { label: "微信 / 线下", val: 8, color: "#4a8fb8" },
-  { label: "批发订单", val: 5, color: "#cdd2cb" },
+// 销售渠道 — where the order is finally placed (口径一：成交渠道).
+export const salesChannels: ChannelSlice[] = [
+  { label: "官网商城", val: 30, color: "var(--accent)" },
+  { label: "人工代下单", val: 24, color: "#c2703d" },
+  { label: "渠道采购", val: 18, color: "#e0a44a" },
+  { label: "企业采购", val: 12, color: "#2b6cb0" },
+  { label: "线下活动", val: 10, color: "#8a6fb0" },
+  { label: "微信商城", val: 6, color: "#2a9c74" },
 ];
 
+// 客户来源 — where the customer first discovered 瑰野 (口径二：获客来源).
+export const customerSources: ChannelSlice[] = [
+  { label: "小红书", val: 22, color: "#c0392b" },
+  { label: "展会", val: 18, color: "#b07d18" },
+  { label: "抖音", val: 14, color: "#3a403c" },
+  { label: "微信", val: 12, color: "#2f7d4f" },
+  { label: "线下转介绍", val: 11, color: "#c2703d" },
+  { label: "Instagram", val: 9, color: "#8a6fb0" },
+  { label: "自然搜索", val: 8, color: "#2b6cb0" },
+  { label: "WhatsApp", val: 6, color: "#1f8a5b" },
+];
+
+// 产品销售排行（替代重复的"销售额·渠道"面板）。
+export const productRanking: ProductRank[] = [
+  { name: "瑰野·桂花酿米酒 500ml", revenue: 386400, units: 1842, orders: 1126, pct: 100, growth: 12.6 },
+  { name: "瑰野·杨梅气泡果酒 6瓶", revenue: 312800, units: 1356, orders: 742, pct: 81, growth: 8.4 },
+  { name: "瑰野·青梅清酒礼盒", revenue: 224700, units: 980, orders: 651, pct: 58, growth: 15.2 },
+  { name: "瑰野·古法米酿 1.5L", revenue: 168200, units: 712, orders: 498, pct: 44, growth: -3.1 },
+  { name: "瑰野·荔枝玫瑰利口酒", revenue: 124600, units: 524, orders: 386, pct: 32, growth: 6.7 },
+  { name: "瑰野·桂花酿礼盒装", revenue: 98400, units: 318, orders: 246, pct: 25, growth: 21.5 },
+];
+
+// 地区排行 · 国内省市（中国业务阶段优先）。
+export const provinceRanking: RegionRank[] = [
+  { name: "江苏", value: 246800, orders: 642 },
+  { name: "上海", value: 218400, orders: 586 },
+  { name: "北京", value: 192600, orders: 503 },
+  { name: "浙江", value: 168200, orders: 471 },
+  { name: "广东", value: 154800, orders: 438 },
+  { name: "四川", value: 96400, orders: 282 },
+];
+
+// 首页待办 — each item is a clear action, not just a number (per the spec).
 export const alerts: AlertItem[] = [
-  { title: "经销商超时未确认", detail: "Maison Vert 等 5 家 · 超 24h", count: 5, tone: "red", icon: "clock" },
-  { title: "物流异常包裹", detail: "清关异常 2 · 破损 1", count: 3, tone: "amber", icon: "truck" },
-  { title: "库存低于安全线", detail: "杨梅果酒 等 4 个 SKU", count: 4, tone: "amber", icon: "box" },
-  { title: "客户退款申请", detail: "待财务 / 客服处理", count: 7, tone: "red", icon: "refund" },
-  { title: "经销商欠款超期", detail: "US West 等 2 家逾期", count: 2, tone: "red", icon: "cash" },
-  { title: "合同即将到期", detail: "30 天内 1 份待续签", count: 1, tone: "blue", icon: "file" },
+  { title: "订单待发货", detail: "超时未发货 8 单", count: 8, tone: "amber", icon: "truck" },
+  { title: "渠道客户待跟进", detail: "超 7 天未跟进 3 家", count: 3, tone: "red", icon: "clock" },
+  { title: "报价待确认", detail: "2 份报价等待客户确认", count: 2, tone: "amber", icon: "file" },
+  { title: "库存不足", detail: "杨梅果酒 等 4 个 SKU", count: 4, tone: "amber", icon: "box" },
+  { title: "售后待处理", detail: "退款 / 客诉待处理", count: 1, tone: "red", icon: "refund" },
+  { title: "应收逾期", detail: "US West 等 2 家逾期", count: 2, tone: "red", icon: "cash" },
 ];
 
 export const warehouseStock: WarehouseStock[] = [

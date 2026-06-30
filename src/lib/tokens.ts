@@ -57,7 +57,7 @@ export const SETTLEMENT_STATUS: Record<SettlementStatus, Tone> = {
 };
 
 export const SETTLEMENT_TYPE: Record<string, string> = {
-  dealer_payout: "经销商返佣",
+  dealer_payout: "渠道结算",
   refund: "退款",
   receivable: "应收账款",
   invoice: "开票",

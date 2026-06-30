@@ -20,7 +20,10 @@ export function Alerts() {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>待办与异常</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ fontSize: 15, fontWeight: 700 }}>今日待办</span>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>需要今天处理的事项</span>
+        </div>
         <span
           style={{
             fontSize: 11,
@@ -31,7 +34,7 @@ export function Alerts() {
             borderRadius: 20,
           }}
         >
-          11 项待处理
+          {alerts.reduce((sum, a) => sum + a.count, 0)} 项待处理
         </span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", marginTop: 8 }}>

@@ -1,10 +1,24 @@
 import { StatStrip, type Stat } from "@/components/ui/StatStrip";
-import { getOrders } from "@/lib/data/queries";
+import { SubTabs } from "@/components/ui/SubTabs";
+import { getOrders, getShipments } from "@/lib/data/queries";
 import { fmtCurrency } from "@/lib/tokens";
+import { navItemByKey, activeSubView } from "@/lib/nav";
 import { OrdersView } from "./OrdersView";
 
-export default async function OrdersPage() {
-  const orders = await getOrders();
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const { view } = await searchParams;
+  const item = navItemByKey("orders");
+  const active = activeSubView(item, view)?.key ?? "all";
+
+  const [orders, shipments] = await Promise.all([getOrders(), getShipments()]);
+
+  // 发货异常 = orders whose shipment carries an exception note — a real
+  // cross-module view rather than a fabricated status.
+  const exceptionNos = shipments.filter((s) => s.exception).map((s) => s.order_no);
 
   const count = (s: string) => orders.filter((o) => o.status === s).length;
   const recentGmv = orders.reduce((sum, o) => sum + o.amount, 0);
@@ -19,7 +33,8 @@ export default async function OrdersPage() {
   return (
     <>
       <StatStrip stats={stats} />
-      <OrdersView orders={orders} />
+      <SubTabs item={item} active={active} />
+      <OrdersView orders={orders} view={active} exceptionNos={exceptionNos} />
     </>
   );
 }
