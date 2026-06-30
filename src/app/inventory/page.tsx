@@ -1,7 +1,10 @@
 import { Card } from "@/components/ui/Card";
 import { StatStrip, type Stat } from "@/components/ui/StatStrip";
+import { SubTabs } from "@/components/ui/SubTabs";
+import { ModulePlaceholder } from "@/components/ui/ModulePlaceholder";
 import { getProducts, getInventory, getWarehouses } from "@/lib/data/queries";
 import { fmtNumber } from "@/lib/tokens";
+import { navItemByKey, activeSubView } from "@/lib/nav";
 import { InventoryView, type InventoryRowView } from "./InventoryView";
 
 function LegendDot({ color, label }: { color: string; label: string }) {
@@ -13,7 +16,15 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-export default async function InventoryPage() {
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const { view } = await searchParams;
+  const item = navItemByKey("inventory");
+  const active = activeSubView(item, view)?.key ?? "products";
+
   const [products, inventory, warehouses] = await Promise.all([
     getProducts(),
     getInventory(),
@@ -97,95 +108,62 @@ export default async function InventoryPage() {
   return (
     <>
       <StatStrip stats={stats} />
+      <SubTabs item={item} active={active} />
 
-      <Card style={{ display: "flex", flexDirection: "column", marginBottom: 16 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 4,
-          }}
-        >
-          <span style={{ fontSize: 15, fontWeight: 700 }}>多仓库存分布</span>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              fontSize: 11,
-              color: "var(--muted)",
-            }}
-          >
-            <LegendDot color="var(--accent)" label="可售" />
-            <LegendDot color="#e0a44a" label="锁定" />
-            <LegendDot color="#cdd2cb" label="在途" />
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 15, marginTop: 14 }}>
-          {warehouseSummary.map((w) => {
-            const total = w.sellable + w.locked + w.transit;
-            const pct = (n: number) => (total > 0 ? ((n / total) * 100).toFixed(1) + "%" : "0%");
-            return (
-              <div key={w.id} style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#2c322e" }}>{w.name}</span>
-                  <span
-                    style={{
-                      fontSize: 10.5,
-                      color: "var(--muted)",
-                      background: "var(--bg)",
-                      padding: "1px 7px",
-                      borderRadius: 5,
-                    }}
-                  >
-                    {w.code}
-                  </span>
-                  {w.lowCount > 0 && (
-                    <span
-                      style={{
-                        fontSize: 10.5,
-                        fontWeight: 600,
-                        color: "#c0392b",
-                        background: "#fdf0ef",
-                        padding: "1px 7px",
-                        borderRadius: 5,
-                      }}
-                    >
-                      {w.lowCount} SKU预警
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      marginLeft: "auto",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {fmtNumber(total)}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    height: 8,
-                    borderRadius: 5,
-                    overflow: "hidden",
-                    background: "var(--bg)",
-                  }}
-                >
-                  <div style={{ background: "var(--accent)", width: pct(w.sellable) }} />
-                  <div style={{ background: "#e0a44a", width: pct(w.locked) }} />
-                  <div style={{ background: "#cdd2cb", width: pct(w.transit) }} />
+      {active === "moves" ? (
+        <ModulePlaceholder
+          icon="layers"
+          title="入库 / 出库记录"
+          description="按批次记录每一次入库与出库，支持采购入库、退货入库、销售出库、调拨与盘点，形成完整的库存流水。"
+          fields={["入库单", "出库单", "批次 / 效期", "经办人", "关联订单", "调拨单", "盘点差异"]}
+        />
+      ) : (
+        <>
+          {active === "stock" && (
+            <Card style={{ display: "flex", flexDirection: "column", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>多仓库存分布</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 11, color: "var(--muted)" }}>
+                  <LegendDot color="var(--accent)" label="可售" />
+                  <LegendDot color="#e0a44a" label="锁定" />
+                  <LegendDot color="#cdd2cb" label="在途" />
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </Card>
+              <div style={{ display: "flex", flexDirection: "column", gap: 15, marginTop: 14 }}>
+                {warehouseSummary.map((w) => {
+                  const total = w.sellable + w.locked + w.transit;
+                  const pct = (n: number) => (total > 0 ? ((n / total) * 100).toFixed(1) + "%" : "0%");
+                  return (
+                    <div key={w.id} style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#2c322e" }}>{w.name}</span>
+                        <span style={{ fontSize: 10.5, color: "var(--muted)", background: "var(--bg)", padding: "1px 7px", borderRadius: 5 }}>
+                          {w.code}
+                        </span>
+                        {w.lowCount > 0 && (
+                          <span style={{ fontSize: 10.5, fontWeight: 600, color: "#c0392b", background: "#fdf0ef", padding: "1px 7px", borderRadius: 5 }}>
+                            {w.lowCount} SKU预警
+                          </span>
+                        )}
+                        <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                          {fmtNumber(total)}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", height: 8, borderRadius: 5, overflow: "hidden", background: "var(--bg)" }}>
+                        <div style={{ background: "var(--accent)", width: pct(w.sellable) }} />
+                        <div style={{ background: "#e0a44a", width: pct(w.locked) }} />
+                        <div style={{ background: "#cdd2cb", width: pct(w.transit) }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
 
-      <InventoryView rows={rows} />
+          <InventoryView rows={rows} view={active} />
+        </>
+      )}
     </>
   );
 }

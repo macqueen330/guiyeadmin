@@ -38,8 +38,17 @@ export function getKpis() {
 export function getPipeline() {
   return mock.pipeline;
 }
-export function getChannels() {
-  return mock.channels;
+export function getSalesChannels() {
+  return mock.salesChannels;
+}
+export function getCustomerSources() {
+  return mock.customerSources;
+}
+export function getProductRanking() {
+  return mock.productRanking;
+}
+export function getProvinceRanking() {
+  return mock.provinceRanking;
 }
 export function getAlerts() {
   return mock.alerts;

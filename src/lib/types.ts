@@ -167,6 +167,23 @@ export interface ChannelSlice {
   color: string;
 }
 
+// 产品销售排行 — replaces the old "销售额·渠道" panel (which duplicated the donut).
+export interface ProductRank {
+  name: string;
+  revenue: number;
+  units: number;
+  orders: number;
+  pct: number; // bar width relative to the top product (0–100)
+  growth: number; // 环比增长 %, may be negative
+}
+
+// 地区排行 — domestic provinces/cities or overseas countries.
+export interface RegionRank {
+  name: string;
+  value: number; // 销售额
+  orders: number;
+}
+
 export interface AlertItem {
   title: string;
   detail: string;

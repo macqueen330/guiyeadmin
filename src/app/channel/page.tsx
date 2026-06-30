@@ -1,9 +1,19 @@
 import { StatStrip, type Stat } from "@/components/ui/StatStrip";
+import { SubTabs } from "@/components/ui/SubTabs";
 import { getDealers } from "@/lib/data/queries";
 import { fmtCurrency } from "@/lib/tokens";
+import { navItemByKey, activeSubView } from "@/lib/nav";
 import { ChannelView } from "./ChannelView";
 
-export default async function ChannelPage() {
+export default async function ChannelPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const { view } = await searchParams;
+  const item = navItemByKey("channel");
+  const active = activeSubView(item, view)?.key ?? "clients";
+
   const dealers = await getDealers();
 
   const count = (s: string) => dealers.filter((d) => d.status === s).length;
@@ -13,7 +23,7 @@ export default async function ChannelPage() {
 
   const stats: Stat[] = [
     {
-      label: "经销商总数",
+      label: "渠道客户",
       value: String(dealers.length),
       sub: `覆盖 ${regionCount} 个地区`,
       icon: "share",
@@ -29,8 +39,9 @@ export default async function ChannelPage() {
       valueColor: "#16894f",
     },
     {
-      label: "待审核授权",
+      label: "合作申请",
       value: String(count("pending")),
+      sub: "待审核",
       icon: "clock",
       iconColor: "#b45309",
       iconBg: "#fff7ec",
@@ -50,7 +61,8 @@ export default async function ChannelPage() {
   return (
     <>
       <StatStrip stats={stats} />
-      <ChannelView dealers={dealers} />
+      <SubTabs item={item} active={active} />
+      <ChannelView dealers={dealers} view={active} />
     </>
   );
 }

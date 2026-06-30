@@ -17,7 +17,30 @@ const sourceOptions = Object.entries(ORDER_SOURCE).map(([value, t]) => ({
   label: t.text,
 }));
 
-export function OrdersView({ orders }: { orders: Order[] }) {
+// Order-type segmentation (零售 / 渠道 / 企业) by下单来源 — separating types now,
+// before the partner model is fixed, per the spec.
+const RETAIL_SOURCES = ["web", "wechat", "whatsapp", "instagram"];
+const CHANNEL_SOURCES = ["dealer", "fair"];
+
+export function OrdersView({
+  orders,
+  view = "all",
+  exceptionNos = [],
+}: {
+  orders: Order[];
+  view?: string;
+  exceptionNos?: string[];
+}) {
+  const exSet = new Set(exceptionNos);
+  const viewFilter: Record<string, (o: Order) => boolean> = {
+    all: () => true,
+    retail: (o) => RETAIL_SOURCES.includes(o.source),
+    channel: (o) => CHANNEL_SOURCES.includes(o.source),
+    enterprise: (o) => o.source === "wholesale",
+    refund: (o) => o.status === "refund",
+    exception: (o) => exSet.has(o.order_no),
+  };
+  const rows = orders.filter(viewFilter[view] ?? viewFilter.all);
   const columns: Column<Order>[] = [
     {
       key: "order_no",
@@ -104,18 +127,35 @@ export function OrdersView({ orders }: { orders: Order[] }) {
     },
   ];
 
-  const filters: FilterDef<Order>[] = [
-    { key: "status", label: "状态", options: statusOptions, match: (o, v) => o.status === v },
-    { key: "source", label: "来源", options: sourceOptions, match: (o, v) => o.source === v },
-  ];
+  const statusFilter: FilterDef<Order> = {
+    key: "status",
+    label: "状态",
+    options: statusOptions,
+    match: (o, v) => o.status === v,
+  };
+  const sourceFilter: FilterDef<Order> = {
+    key: "source",
+    label: "来源",
+    options: sourceOptions,
+    match: (o, v) => o.source === v,
+  };
+  // The active tab already pins the order type/status, so only "全部订单" needs
+  // the full dropdown set.
+  const filters: FilterDef<Order>[] =
+    view === "all"
+      ? [statusFilter, sourceFilter]
+      : view === "refund" || view === "exception"
+        ? []
+        : [statusFilter];
 
   return (
     <FilterableTable
-      rows={orders}
+      rows={rows}
       columns={columns}
       filters={filters}
       searchText={(o) => `${o.order_no} ${o.customer_name} ${o.country} ${o.ship_from}`}
       searchPlaceholder="搜索订单号 / 客户 / 国家"
+      empty={view === "exception" ? "暂无发货异常订单" : "该类型暂无订单"}
       rightAction={
         <>
           <Button variant="secondary" icon="filter">
