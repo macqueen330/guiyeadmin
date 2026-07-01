@@ -4,6 +4,7 @@
 
 import { getSupabaseServer } from "../supabase/server";
 import * as mock from "../mock/data";
+import * as web from "../mock/web";
 import { admins as mockAdmins } from "../mock/admin";
 import type {
   BrandAsset,
@@ -152,4 +153,30 @@ export async function getSystemUsers(): Promise<SystemUser[]> {
 
 export function getAdmins() {
   return mockAdmins;
+}
+
+// 官网数据（示例数据；接入统计后替换为真实埋点）。
+export function getWebOverview() {
+  return web.webOverview;
+}
+export function getProductAnalytics() {
+  return web.productAnalytics;
+}
+export function getPageStats() {
+  return web.pageStats;
+}
+export function getTrafficSources() {
+  return web.trafficSources;
+}
+export function getDeviceSplit() {
+  return web.deviceSplit;
+}
+export function getWebCities() {
+  return web.webCities;
+}
+export function getOverallFunnel() {
+  return web.overallFunnel;
+}
+export function getEventCounts() {
+  return web.eventCounts;
 }

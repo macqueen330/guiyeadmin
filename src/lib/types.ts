@@ -331,6 +331,43 @@ export interface RegionRank {
   orders: number;
 }
 
+// ---- 官网数据 / 网站分析（流量与兴趣，独立于成交）----
+
+// 单个产品的官网表现（曝光 → 点击 → 详情 → 加购 → 下单 → 支付）。
+export interface ProductAnalytics {
+  id: string;
+  name: string;
+  impressions: number; // 曝光量（被展示次数）
+  clicks: number; // 点击量（点击进入详情）
+  views: number; // 详情页深度浏览量
+  add_cart: number; // 加购
+  orders: number; // 下单
+  paid: number; // 支付成功
+}
+
+// 官网页面表现。
+export interface PageStat {
+  page: string;
+  pv: number;
+  uv: number;
+  avg_stay: string; // mm:ss
+  bounce: number; // 跳出率 %
+}
+
+// 官网访问地域（国内省市优先）。
+export interface WebCity {
+  name: string;
+  visitors: number;
+  clicks: number;
+  orders: number;
+}
+
+// 转化漏斗的一个环节。
+export interface FunnelStep {
+  label: string;
+  count: number;
+}
+
 export interface AlertItem {
   title: string;
   detail: string;
