@@ -4,6 +4,14 @@
 import type {
   OrderSource,
   OrderStatus,
+  OrderType,
+  OrderChannel,
+  CustomerSource,
+  PaymentMethod,
+  PayStatus,
+  FulfillStatus,
+  SettleStatus as OrderSettleStatus,
+  RefundStatus,
   DealerStatus,
   ShipmentStatus,
   SettlementStatus,
@@ -61,6 +69,80 @@ export const SETTLEMENT_TYPE: Record<string, string> = {
   refund: "退款",
   receivable: "应收账款",
   invoice: "开票",
+};
+
+// ---- Order Center: separated dimensions & status lines ----
+
+export const ORDER_TYPE: Record<OrderType, Tone> = {
+  retail: { text: "零售订单", color: "#1f7a5c", bg: "#e9f5ef" },
+  channel: { text: "渠道订单", color: "#c2703d", bg: "#fbf0e6" },
+  enterprise: { text: "企业采购", color: "#2b6cb0", bg: "#eef4ff" },
+  sample: { text: "样品订单", color: "#8a6fb0", bg: "#f4f0fa" },
+  event: { text: "活动订单", color: "#b07d18", bg: "#fbf4e3" },
+  reissue: { text: "售后补发", color: "#5b6470", bg: "#eef0f2" },
+};
+
+export const ORDER_CHANNEL: Record<OrderChannel, Tone> = {
+  web_store: { text: "官网商城", color: "#1f7a5c", bg: "#e9f5ef" },
+  wechat_store: { text: "微信商城", color: "#2f7d4f", bg: "#e9f4ec" },
+  backend: { text: "后台代下单", color: "#c2703d", bg: "#fbf0e6" },
+  offline_pos: { text: "线下收银", color: "#b07d18", bg: "#fbf4e3" },
+  api: { text: "API 导入", color: "#5b6470", bg: "#eef0f2" },
+};
+
+export const CUSTOMER_SOURCE: Record<CustomerSource, Tone> = {
+  wechat: { text: "微信", color: "#2f7d4f", bg: "#e9f4ec" },
+  xhs: { text: "小红书", color: "#c0392b", bg: "#fdf0ef" },
+  instagram: { text: "Instagram", color: "#8a6fb0", bg: "#f3eefa" },
+  whatsapp: { text: "WhatsApp", color: "#1f8a5b", bg: "#e7f6ee" },
+  fair: { text: "展会", color: "#b07d18", bg: "#fbf4e3" },
+  referral: { text: "转介绍", color: "#c2703d", bg: "#fbf0e6" },
+  organic: { text: "自然搜索", color: "#5b6470", bg: "#eef0f2" },
+};
+
+export const PAYMENT_METHOD: Record<PaymentMethod, Tone> = {
+  wechat_pay: { text: "微信支付", color: "#2f7d4f", bg: "#e9f4ec" },
+  alipay: { text: "支付宝", color: "#2b6cb0", bg: "#eef4ff" },
+  unionpay: { text: "银联", color: "#c0392b", bg: "#fdf0ef" },
+  bank_transfer: { text: "银行转账", color: "#5b6470", bg: "#eef0f2" },
+  offline: { text: "线下收款", color: "#b07d18", bg: "#fbf4e3" },
+  credit_term: { text: "账期", color: "#8a6fb0", bg: "#f4f0fa" },
+  unpaid: { text: "未支付", color: "#6b716d", bg: "#f1f2f0" },
+};
+
+export const PAY_STATUS: Record<PayStatus, Tone> = {
+  unpaid: { text: "待支付", color: "#6b716d", bg: "#f1f2f0" },
+  paying: { text: "支付中", color: "#2b6cb0", bg: "#eef4ff" },
+  paid: { text: "支付成功", color: "#16894f", bg: "#e9f5ef" },
+  failed: { text: "支付失败", color: "#c0392b", bg: "#fdf0ef" },
+  partial_refund: { text: "部分退款", color: "#b45309", bg: "#fff7ec" },
+  refunded: { text: "已退款", color: "#c0392b", bg: "#fdf0ef" },
+  pay_exception: { text: "支付异常", color: "#c0392b", bg: "#fdf0ef" },
+};
+
+export const FULFILL_STATUS: Record<FulfillStatus, Tone> = {
+  assign: { text: "待分配", color: "#2b6cb0", bg: "#eef4ff" },
+  prep: { text: "备货中", color: "#8a6fb0", bg: "#f4f0fa" },
+  wait_ship: { text: "待发货", color: "#b45309", bg: "#fff7ec" },
+  shipped: { text: "已发货", color: "#1f7a5c", bg: "#e9f5ef" },
+  signed: { text: "已签收", color: "#16894f", bg: "#e9f7ef" },
+  fulfill_exception: { text: "发货异常", color: "#c0392b", bg: "#fdf0ef" },
+};
+
+export const SETTLE_STATUS: Record<OrderSettleStatus, Tone> = {
+  unsettled: { text: "未结算", color: "#6b716d", bg: "#f1f2f0" },
+  reconciling: { text: "对账中", color: "#2b6cb0", bg: "#eef4ff" },
+  settled: { text: "已结算", color: "#16894f", bg: "#e9f5ef" },
+  settle_exception: { text: "结算异常", color: "#c0392b", bg: "#fdf0ef" },
+};
+
+export const REFUND_STATUS: Record<RefundStatus, Tone> = {
+  applying: { text: "申请中", color: "#6b716d", bg: "#f1f2f0" },
+  reviewing: { text: "审核中", color: "#b45309", bg: "#fff7ec" },
+  processing: { text: "处理中", color: "#2b6cb0", bg: "#eef4ff" },
+  success: { text: "退款成功", color: "#16894f", bg: "#e9f5ef" },
+  reconciled: { text: "对账完成", color: "#1f7a5c", bg: "#e9f7ef" },
+  rejected: { text: "已驳回", color: "#c0392b", bg: "#fdf0ef" },
 };
 
 // Deterministic avatar palette (matches the prototype's `av` array).
