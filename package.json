@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "gen:seed": "node --experimental-strip-types scripts/gen-seed.mts > supabase/seed.sql",
-    "db:check": "node --experimental-strip-types --env-file=.env.local scripts/db-check.mts"
+    "db:check": "node --experimental-strip-types --env-file=.env.local scripts/db-check.mts",
+    "admin:create": "node --experimental-strip-types --env-file=.env.local scripts/create-admin.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

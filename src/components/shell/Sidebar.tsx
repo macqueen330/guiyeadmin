@@ -11,6 +11,9 @@ import {
   type NavItem,
 } from "@/lib/nav";
 import { Icon } from "@/components/ui/Icon";
+import { useViewer } from "./AdminProvider";
+import { signOutAction } from "@/lib/auth/actions";
+import { ADMIN_LEVEL } from "@/lib/tokens";
 
 function Badge({ tone, text }: { tone: "accent" | "red"; text: string }) {
   return (
@@ -190,6 +193,15 @@ export function Sidebar() {
   const view = searchParams.get("view");
   const activeItem = navMetaForPath(pathname);
   const activeKey = activeItem.key;
+  const viewer = useViewer();
+
+  // Only show modules the current admin is allowed to access. Server-side checks
+  // still gate every page & action — this is menu-level UX filtering.
+  const allowed = new Set(viewer.visibleNav);
+  const groups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((it) => allowed.has(it.key)),
+  })).filter((g) => g.items.length > 0);
 
   // Each group with children starts collapsed except the active one; the user
   // can override per-module via the chevron.
@@ -237,7 +249,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      {NAV_GROUPS.map((group, gi) => (
+      {groups.map((group, gi) => (
         <div key={group.label ?? `group-${gi}`} style={{ display: "contents" }}>
           {group.label && (
             <span
@@ -269,7 +281,7 @@ export function Sidebar() {
         </div>
       ))}
 
-      {/* User card */}
+      {/* User card + logout */}
       <div
         style={{
           marginTop: "auto",
@@ -296,7 +308,7 @@ export function Sidebar() {
             flex: "none",
           }}
         >
-          陈
+          {viewer.name[0]}
         </div>
         <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2, minWidth: 0 }}>
           <span
@@ -309,11 +321,34 @@ export function Sidebar() {
               textOverflow: "ellipsis",
             }}
           >
-            陈思远
+            {viewer.name}
           </span>
-          <span style={{ color: "#727872", fontSize: 10.5 }}>超级管理员</span>
+          <span style={{ color: "#727872", fontSize: 10.5 }}>
+            {ADMIN_LEVEL[viewer.level].text} · {viewer.role}
+            {viewer.isDemo ? " · 演示" : ""}
+          </span>
         </div>
-        <Icon name="caretDown" size={15} color="#727872" style={{ marginLeft: "auto", flex: "none" }} />
+        <form action={signOutAction} style={{ marginLeft: "auto", flex: "none", display: "flex" }}>
+          <button
+            type="submit"
+            title="退出登录"
+            aria-label="退出登录"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              border: "none",
+              background: "transparent",
+              color: "#9aa098",
+              cursor: "pointer",
+            }}
+          >
+            <Icon name="logout" size={16} />
+          </button>
+        </form>
       </div>
     </aside>
   );
