@@ -50,6 +50,12 @@ export function getProductRanking() {
 export function getProvinceRanking() {
   return mock.provinceRanking;
 }
+export function getPayments() {
+  return mock.payments;
+}
+export function getRefunds() {
+  return mock.refunds;
+}
 export function getAlerts() {
   return mock.alerts;
 }

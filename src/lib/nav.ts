@@ -171,6 +171,21 @@ export const NAV_GROUPS: NavGroup[] = [
         ],
       },
       {
+        key: "payments",
+        label: "支付中心",
+        href: "/payments",
+        icon: "cash",
+        title: "支付中心",
+        subtitle: "支付流水、异常、退款与渠道对账",
+        children: [
+          { key: "flow", label: "支付流水", view: "flow", default: true },
+          { key: "exception", label: "支付异常", view: "exception" },
+          { key: "refunds", label: "退款管理", view: "refunds" },
+          { key: "reconcile", label: "渠道对账", view: "reconcile" },
+          { key: "config", label: "支付配置", view: "config" },
+        ],
+      },
+      {
         key: "analytics",
         label: "数据分析",
         href: "/analytics",

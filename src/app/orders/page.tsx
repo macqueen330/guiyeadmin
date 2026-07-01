@@ -1,6 +1,6 @@
 import { StatStrip, type Stat } from "@/components/ui/StatStrip";
 import { SubTabs } from "@/components/ui/SubTabs";
-import { getOrders, getShipments } from "@/lib/data/queries";
+import { getOrders, getPayments } from "@/lib/data/queries";
 import { fmtCurrency } from "@/lib/tokens";
 import { navItemByKey, activeSubView } from "@/lib/nav";
 import { OrdersView } from "./OrdersView";
@@ -14,27 +14,32 @@ export default async function OrdersPage({
   const item = navItemByKey("orders");
   const active = activeSubView(item, view)?.key ?? "all";
 
-  const [orders, shipments] = await Promise.all([getOrders(), getShipments()]);
+  const [orders, payments] = await Promise.all([getOrders(), getPayments()]);
 
-  // 发货异常 = orders whose shipment carries an exception note — a real
-  // cross-module view rather than a fabricated status.
-  const exceptionNos = shipments.filter((s) => s.exception).map((s) => s.order_no);
+  // Net-received per order = 实付 − 已退款 (from the payment txn), so partial
+  // refunds don't inflate the收款 figures.
+  const refundedByOrder: Record<string, number> = {};
+  for (const p of payments) refundedByOrder[p.order_no] = (refundedByOrder[p.order_no] ?? 0) + p.refunded;
 
-  const count = (s: string) => orders.filter((o) => o.status === s).length;
-  const recentGmv = orders.reduce((sum, o) => sum + o.amount, 0);
+  const outstanding = orders.reduce((s, o) => s + Math.max(0, o.amount - o.amount_received), 0);
+  const unpaidCount = orders.filter((o) => o.amount_received < o.amount).length;
+  const pendingShip = orders.filter(
+    (o) => o.fulfill_status === "assign" || o.fulfill_status === "prep" || o.fulfill_status === "wait_ship",
+  ).length;
 
+  // GMV (下单金额) and实收 (回款) are intentionally different figures.
   const stats: Stat[] = [
-    { label: "本月订单", value: "3,642", sub: `待发货 128 · 列表 ${orders.length} 条`, icon: "bag", iconColor: "#c2703d", iconBg: "#fff5ec" },
-    { label: "待审核", value: String(count("review")), sub: "支付 / 风控审核", icon: "clock", iconColor: "#b45309", iconBg: "#fff7ec", valueColor: "#b45309" },
-    { label: "待分配 / 备货", value: String(count("assign") + count("prep")), sub: "匹配库存与发货方", icon: "box", iconColor: "#2b6cb0", iconBg: "#eef4ff", valueColor: "#2b6cb0" },
-    { label: "近期订单金额", value: fmtCurrency(recentGmv), sub: "GMV 本月 ¥1,284,560", icon: "dollar", iconColor: "var(--accent)", iconBg: "var(--accent-soft)" },
+    { label: "本月 GMV", value: "¥1,284,560", sub: "有效订单 3,642", icon: "dollar", iconColor: "var(--accent)", iconBg: "var(--accent-soft)" },
+    { label: "本月实收", value: "¥1,196,200", sub: "回款率 93.1%", icon: "cash", iconColor: "#16894f", iconBg: "#e9f5ef", valueColor: "#16894f" },
+    { label: "待收款", value: fmtCurrency(outstanding), sub: `含账期 / 待支付 ${unpaidCount} 单`, icon: "clock", iconColor: "#b45309", iconBg: "#fff7ec", valueColor: "#b45309" },
+    { label: "待发货", value: String(pendingShip), sub: "待分配 / 备货 / 待发货", icon: "truck", iconColor: "#c2703d", iconBg: "#fff5ec", valueColor: "#c2703d" },
   ];
 
   return (
     <>
       <StatStrip stats={stats} />
       <SubTabs item={item} active={active} />
-      <OrdersView orders={orders} view={active} exceptionNos={exceptionNos} />
+      <OrdersView orders={orders} view={active} refundedByOrder={refundedByOrder} />
     </>
   );
 }
