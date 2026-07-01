@@ -4,6 +4,7 @@
 
 import { getSupabaseServer } from "../supabase/server";
 import * as mock from "../mock/data";
+import { admins as mockAdmins } from "../mock/admin";
 import type {
   BrandAsset,
   Customer,
@@ -147,4 +148,8 @@ export async function getSystemUsers(): Promise<SystemUser[]> {
   return fetchTable<SystemUser>("system_users", mock.systemUsers, {
     column: "id",
   });
+}
+
+export function getAdmins() {
+  return mockAdmins;
 }
