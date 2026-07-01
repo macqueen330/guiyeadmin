@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
-import { AppShell } from "@/components/shell/AppShell";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -31,9 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" className={manrope.variable}>
-      <body>
-        <AppShell>{children}</AppShell>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

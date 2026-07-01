@@ -285,6 +285,9 @@ export type AdminStatus =
   | "resigned" // 已离职
   | "closed"; // 已注销
 
+// 模块授权：整模块("all")、只读("view")、或指定动作名数组。
+export type AdminGrant = "all" | "view" | string[];
+
 export interface Admin {
   id: string;
   name: string;
@@ -297,6 +300,20 @@ export interface Admin {
   scope_label: string; // e.g. 华东（江苏 / 上海 / 浙江）
   status: AdminStatus;
   last_login: string;
+
+  // ---- 管理员系统新增（Supabase 持久化；mock 数据可缺省）----
+  user_id?: string | null; // 关联 auth.users
+  grants?: Record<string, AdminGrant>; // 模块权限（覆盖角色模板）
+  scope_values?: string[]; // 数据范围取值（区域 / 部门 / 仓库 / 下属 id）
+  password_change_required?: boolean;
+  two_factor?: boolean;
+  failed_attempts?: number;
+  locked_until?: string | null;
+  session_epoch?: number; // 强制退出：自增即失效旧会话
+  created_by?: string | null;
+  deleted_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // ---- Dashboard aggregates ----

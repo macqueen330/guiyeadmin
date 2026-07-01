@@ -3,6 +3,13 @@
 // the UI always renders. Server Components call these directly.
 
 import { getSupabaseServer } from "../supabase/server";
+import { getCurrentAdmin } from "../auth/context";
+import {
+  orderScopeFilter,
+  customerScopeFilter,
+  applyScope,
+  type ScopeFilter,
+} from "./scope";
 import * as mock from "../mock/data";
 import * as web from "../mock/web";
 import { admins as mockAdmins } from "../mock/admin";
@@ -35,6 +42,15 @@ async function fetchTable<T>(
   const { data, error } = await query;
   if (error || !data || data.length === 0) return fallback;
   return data as T[];
+}
+
+// Push a data-scope constraint down to the Supabase query (server-side IN).
+function applyScopeToQuery<Q extends { in(column: string, values: readonly string[]): Q }>(
+  query: Q,
+  filter: ScopeFilter | null,
+): Q {
+  if (!filter) return query;
+  return query.in(filter.column, filter.values);
 }
 
 export function getKpis() {
@@ -72,10 +88,19 @@ export function getTopSku() {
 }
 
 export async function getOrders(): Promise<Order[]> {
-  return fetchTable<Order>("orders", mock.orders, {
-    column: "created_at",
-    ascending: false,
-  });
+  const filter = orderScopeFilter(await getCurrentAdmin());
+  const sb = await getSupabaseServer();
+  if (!sb) {
+    const sorted = [...mock.orders].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    return applyScope(sorted as unknown as Record<string, unknown>[], filter) as unknown as Order[];
+  }
+  let query = sb.from("orders").select("*").order("created_at", { ascending: false });
+  query = applyScopeToQuery(query, filter);
+  const { data, error } = await query;
+  if (error || !data || data.length === 0) {
+    return applyScope(mock.orders as unknown as Record<string, unknown>[], filter) as unknown as Order[];
+  }
+  return data as Order[];
 }
 
 export async function getRecentOrders(limit = 6): Promise<Order[]> {
@@ -100,10 +125,18 @@ export async function getOrderItems(orderId: string): Promise<OrderItem[]> {
 }
 
 export async function getCustomers(): Promise<Customer[]> {
-  return fetchTable<Customer>("customers", mock.customers, {
-    column: "last_order_at",
-    ascending: false,
-  });
+  const filter = customerScopeFilter(await getCurrentAdmin());
+  const sb = await getSupabaseServer();
+  if (!sb) {
+    return applyScope(mock.customers as unknown as Record<string, unknown>[], filter) as unknown as Customer[];
+  }
+  let query = sb.from("customers").select("*").order("last_order_at", { ascending: false });
+  query = applyScopeToQuery(query, filter);
+  const { data, error } = await query;
+  if (error || !data || data.length === 0) {
+    return applyScope(mock.customers as unknown as Record<string, unknown>[], filter) as unknown as Customer[];
+  }
+  return data as Customer[];
 }
 
 export async function getDealers(): Promise<Dealer[]> {
