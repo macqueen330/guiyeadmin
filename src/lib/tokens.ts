@@ -12,6 +12,8 @@ import type {
   FulfillStatus,
   SettleStatus as OrderSettleStatus,
   RefundStatus,
+  AdminLevel,
+  AdminStatus,
   DealerStatus,
   ShipmentStatus,
   SettlementStatus,
@@ -144,6 +146,30 @@ export const REFUND_STATUS: Record<RefundStatus, Tone> = {
   reconciled: { text: "对账完成", color: "#1f7a5c", bg: "#e9f7ef" },
   rejected: { text: "已驳回", color: "#c0392b", bg: "#fdf0ef" },
 };
+
+// ---- Admin levels & account status ----
+
+export const ADMIN_LEVEL: Record<AdminLevel, Tone> = {
+  L1: { text: "一级", color: "#b07d18", bg: "#fbf4e3" },
+  L2: { text: "二级", color: "#2b6cb0", bg: "#eef4ff" },
+  L3: { text: "三级", color: "#5b6470", bg: "#eef0f2" },
+};
+
+export const ADMIN_STATUS: Record<AdminStatus, Tone> = {
+  pending: { text: "待激活", color: "#b45309", bg: "#fff7ec" },
+  active: { text: "正常", color: "#16894f", bg: "#e9f5ef" },
+  suspended: { text: "暂停使用", color: "#b45309", bg: "#fff7ec" },
+  locked: { text: "已锁定", color: "#c0392b", bg: "#fdf0ef" },
+  resigned: { text: "已离职", color: "#6b716d", bg: "#f1f2f0" },
+  closed: { text: "已注销", color: "#6b716d", bg: "#f1f2f0" },
+};
+
+// 手机号脱敏（三级默认脱敏；一级 / 授权财务可见完整）。
+export function maskPhone(phone: string): string {
+  const d = phone.replace(/\D/g, "");
+  if (d.length < 7) return phone;
+  return `${d.slice(0, 3)}****${d.slice(-4)}`;
+}
 
 // Deterministic avatar palette (matches the prototype's `av` array).
 export const AVATAR_TONES: { bg: string; color: string }[] = [

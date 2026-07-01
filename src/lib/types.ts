@@ -265,6 +265,40 @@ export interface SystemUser {
   last_active: string;
 }
 
+// ---- Admin & permissions (等级 + 模块权限 + 数据范围) ----
+
+export type AdminLevel = "L1" | "L2" | "L3"; // 超级管理员 / 业务管理员 / 操作员
+
+export type DataScope =
+  | "all" // 全部数据
+  | "region" // 指定区域
+  | "dept" // 指定部门
+  | "subordinate" // 自己及下属
+  | "self" // 仅本人数据
+  | "warehouse"; // 指定仓库
+
+export type AdminStatus =
+  | "pending" // 待激活
+  | "active" // 正常
+  | "suspended" // 暂停使用
+  | "locked" // 已锁定
+  | "resigned" // 已离职
+  | "closed"; // 已注销
+
+export interface Admin {
+  id: string;
+  name: string;
+  phone: string; // full value; masked in the UI per viewer level
+  email: string;
+  level: AdminLevel;
+  role: string; // 岗位 / 角色模板名
+  dept: string;
+  scope: DataScope;
+  scope_label: string; // e.g. 华东（江苏 / 上海 / 浙江）
+  status: AdminStatus;
+  last_login: string;
+}
+
 // ---- Dashboard aggregates ----
 
 export interface PipelineStage {
