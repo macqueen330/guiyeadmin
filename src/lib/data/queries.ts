@@ -159,6 +159,9 @@ export function getAdmins() {
 export function getWebOverview() {
   return web.webOverview;
 }
+export function getWebViews() {
+  return web.webViews;
+}
 export function getProductAnalytics() {
   return web.productAnalytics;
 }

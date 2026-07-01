@@ -16,6 +16,19 @@ export const webOverview = {
   convRate: 3.7, // 下单转化
 };
 
+// 阅览量 · 当日 / 本月 / 累计（PV + UV）。
+export const webViews = {
+  pvToday: 1284,
+  pvTodayDelta: 8.2, // 较昨日
+  uvToday: 612,
+  pvMonth: 28460,
+  pvMonthDelta: 18.6, // 较上月
+  uvMonth: 12385,
+  pvTotal: 486200, // 累计（上线至今）
+  uvTotal: 198400,
+  since: "2025-09 上线至今",
+};
+
 // 每个产品的官网表现。点击率 = 点击 ÷ 曝光；转化率 = 支付 ÷ 详情浏览。
 export const productAnalytics: ProductAnalytics[] = [
   { id: "wp-1", name: "Rose Field 350ml", impressions: 12860, clicks: 4642, views: 2897, add_cart: 527, orders: 224, paid: 175 },

@@ -14,6 +14,7 @@ import {
   getOverallFunnel,
   getEventCounts,
 } from "@/lib/data/queries";
+import { WebViews } from "@/components/dashboard/WebViews";
 import { WebTrend } from "./WebTrend";
 import { Funnel } from "./Funnel";
 
@@ -59,6 +60,8 @@ export function WebAnalytics() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <WebViews />
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
         <WebKpi label="网站浏览量" value={fmtNumber(o.pv)} delta={o.pvDelta} sub="PV" hint="页面被打开的总次数，同一访客多次打开会重复计数。" />
         <WebKpi label="独立访客" value={fmtNumber(o.uv)} delta={o.uvDelta} sub="UV" hint="去重后的独立访客数，同一访客多次访问只算一次。" />
