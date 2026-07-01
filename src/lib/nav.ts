@@ -194,9 +194,10 @@ export const NAV_GROUPS: NavGroup[] = [
         subtitle: "经营、消费者、渠道与商品四类分析",
         children: [
           { key: "overview", label: "经营总览", view: "overview", default: true },
+          { key: "web", label: "官网数据", view: "web" },
+          { key: "product", label: "商品分析", view: "product" },
           { key: "consumer", label: "消费者分析", view: "consumer" },
           { key: "channel", label: "渠道分析", view: "channel" },
-          { key: "product", label: "商品分析", view: "product" },
         ],
       },
     ],

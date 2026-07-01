@@ -17,9 +17,12 @@ import {
   getInventory,
   getProvinceRanking,
   getCustomerSources,
+  getProductAnalytics,
 } from "@/lib/data/queries";
 import { navItemByKey, activeSubView } from "@/lib/nav";
 import type { RegionRank } from "@/lib/types";
+import { WebAnalytics } from "./WebAnalytics";
+import { ProductFunnel } from "./ProductFunnel";
 
 interface Bar {
   label: string;
@@ -66,11 +69,22 @@ function BarRows({ title, subtitle, bars }: { title: string; subtitle: string; b
 export default async function AnalyticsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; product?: string }>;
 }) {
-  const { view } = await searchParams;
+  const { view, product } = await searchParams;
   const item = navItemByKey("analytics");
   const active = activeSubView(item, view)?.key ?? "overview";
+
+  // ---- 官网数据（流量与兴趣，独立于成交）----
+  if (active === "web") {
+    const drill = product ? getProductAnalytics().find((p) => p.id === product) : undefined;
+    return (
+      <>
+        <SubTabs item={item} active={active} />
+        {drill ? <ProductFunnel product={drill} /> : <WebAnalytics />}
+      </>
+    );
+  }
 
   const [orders, customers, dealers, products, inventory, provinceRanking, customerSources] =
     await Promise.all([

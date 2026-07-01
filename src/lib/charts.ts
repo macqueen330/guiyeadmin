@@ -5,7 +5,16 @@ export type Metric = "sales" | "orders" | "received";
 export type Range = "today" | "7" | "30";
 
 export function genSeries(metric: Metric | string, n: number): number[] {
-  const seedMap: Record<string, number> = { sales: 7, orders: 31, received: 53 };
+  const seedMap: Record<string, number> = {
+    sales: 7,
+    orders: 31,
+    received: 53,
+    pv: 13,
+    uv: 17,
+    clicks: 23,
+    inquiry: 29,
+    weborder: 37,
+  };
   let s = (seedMap[metric] || 11) * 1000 + n;
   const rnd = () => {
     s = (s * 9301 + 49297) % 233280;
@@ -15,6 +24,11 @@ export function genSeries(metric: Metric | string, n: number): number[] {
     sales: [22000, 52000],
     orders: [70, 210],
     received: [20000, 49000],
+    pv: [620, 1420],
+    uv: [280, 720],
+    clicks: [180, 440],
+    inquiry: [2, 12],
+    weborder: [6, 26],
   };
   const [lo, hi] = baseMap[metric] || [100, 500];
   const out: number[] = [];
