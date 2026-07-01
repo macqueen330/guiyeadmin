@@ -48,7 +48,8 @@ npm run dev                  # http://localhost:3000
 
 1. 在 [supabase.com](https://supabase.com) 新建项目。
 2. 打开 **SQL Editor**，依次执行：
-   - `supabase/migrations/0001_init.sql`（建表 + 视图 + 公开只读 RLS 策略）
+   - `supabase/migrations/0001_init.sql`（基础表 + 视图 + 公开只读 RLS）
+   - `supabase/migrations/0002_orders_payments_admin.sql`（订单支付/履约/结算字段 + 支付流水 / 退款 / 管理员表）
    - `supabase/seed.sql`（导入示例数据，可选）
 3. 在 **Project Settings → API** 复制 `Project URL` 与 `anon public` key，填入环境变量：
 
@@ -61,6 +62,10 @@ npm run dev                  # http://localhost:3000
    查询失败时回退到示例数据。
 
 > 重新生成种子 SQL（修改示例数据后）：`npm run gen:seed`
+
+> **说明**：
+> - `payments` / `refunds` / `admins` 含敏感数据，示例用的是公开只读 RLS，接入真实数据前请改成登录鉴权 + 数据范围策略。
+> - 「官网数据」（PV/UV、产品点击、漏斗）目前为示例数据，应由埋点 / 统计管道（自建或 GA / 百度统计 / 神策等）写入后再接管，`src/lib/mock/web.ts` 即替换点。
 
 ---
 

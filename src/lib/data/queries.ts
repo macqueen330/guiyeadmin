@@ -7,13 +7,16 @@ import * as mock from "../mock/data";
 import * as web from "../mock/web";
 import { admins as mockAdmins } from "../mock/admin";
 import type {
+  Admin,
   BrandAsset,
   Customer,
   Dealer,
   InventoryRow,
   Order,
   OrderItem,
+  PaymentTxn,
   Product,
+  RefundRecord,
   Settlement,
   Shipment,
   SystemUser,
@@ -52,11 +55,11 @@ export function getProductRanking() {
 export function getProvinceRanking() {
   return mock.provinceRanking;
 }
-export function getPayments() {
-  return mock.payments;
+export async function getPayments(): Promise<PaymentTxn[]> {
+  return fetchTable<PaymentTxn>("payments", mock.payments, { column: "id" });
 }
-export function getRefunds() {
-  return mock.refunds;
+export async function getRefunds(): Promise<RefundRecord[]> {
+  return fetchTable<RefundRecord>("refunds", mock.refunds, { column: "applied_at", ascending: false });
 }
 export function getAlerts() {
   return mock.alerts;
@@ -151,8 +154,8 @@ export async function getSystemUsers(): Promise<SystemUser[]> {
   });
 }
 
-export function getAdmins() {
-  return mockAdmins;
+export async function getAdmins(): Promise<Admin[]> {
+  return fetchTable<Admin>("admins", mockAdmins, { column: "id" });
 }
 
 // 官网数据（示例数据；接入统计后替换为真实埋点）。

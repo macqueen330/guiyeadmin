@@ -73,22 +73,22 @@ insert into customers (id, name, country, email, phone, type, level, orders_coun
   ('c-010', 'Giulia Rossi', '意大利 IT', 'giulia@milanovini.it', '+39 02 8765 4321', 'dealer', '普通', 7, 47600, '2026-06-14', '2024-07-14')
 on conflict (id) do nothing;
 
-insert into orders (id, order_no, customer_name, country, source, ship_from, amount, amount_received, status, created_at) values
-  ('o-28471', '#GY-28471', 'Camille Laurent', '法国 FR', 'dealer', '法国/欧洲仓', 1186, 1186, 'shipped', '2026-06-20T16:42:00Z'),
-  ('o-28470', '#GY-28470', '林晚晴', '中国 CN', 'web', '中国总部仓', 386, 0, 'review', '2026-06-20T15:18:00Z'),
-  ('o-28469', '#GY-28469', 'Michael Cho', '美国 US', 'wholesale', '美国仓', 2680, 2680, 'assign', '2026-06-20T14:05:00Z'),
-  ('o-28468', '#GY-28468', 'Hannah Weber', '德国 DE', 'instagram', '法国/欧洲仓', 857, 857, 'prep', '2026-06-20T12:36:00Z'),
-  ('o-28467', '#GY-28467', '周慕白', '中国 CN', 'fair', '中国总部仓', 188, 0, 'refund', '2026-06-20T11:20:00Z'),
-  ('o-28466', '#GY-28466', 'Sophie Martin', '法国 FR', 'whatsapp', '经销商·Maison Vert', 1536, 1536, 'signed', '2026-06-20T09:48:00Z'),
-  ('o-28465', '#GY-28465', '佐藤 健', '日本 JP', 'dealer', '经销商·Tokyo Sake House', 3240, 3240, 'settled', '2026-06-19T18:10:00Z'),
-  ('o-28464', '#GY-28464', 'Lim Wei', '新加坡 SG', 'wholesale', '中国总部仓', 1980, 1980, 'shipped', '2026-06-19T16:22:00Z'),
-  ('o-28463', '#GY-28463', '陈思远', '中国 CN', 'web', '中国总部仓', 524, 524, 'signed', '2026-06-19T14:51:00Z'),
-  ('o-28462', '#GY-28462', 'Giulia Rossi', '意大利 IT', 'dealer', '法国/欧洲仓', 1476, 0, 'review', '2026-06-19T11:33:00Z'),
-  ('o-28461', '#GY-28461', 'Sophie Martin', '法国 FR', 'web', '法国/欧洲仓', 298, 298, 'shipped', '2026-06-19T10:07:00Z'),
-  ('o-28460', '#GY-28460', 'Michael Cho', '美国 US', 'wholesale', '美国仓', 4280, 4280, 'settled', '2026-06-18T19:40:00Z'),
-  ('o-28459', '#GY-28459', '林晚晴', '中国 CN', 'wechat', '中国总部仓', 168, 168, 'signed', '2026-06-18T15:12:00Z'),
-  ('o-28458', '#GY-28458', 'Hannah Weber', '德国 DE', 'instagram', '法国/欧洲仓', 612, 0, 'assign', '2026-06-18T13:28:00Z'),
-  ('o-28457', '#GY-28457', 'Camille Laurent', '法国 FR', 'dealer', '法国/欧洲仓', 2240, 2240, 'settled', '2026-06-18T09:55:00Z')
+insert into orders (id, order_no, customer_name, country, order_type, order_channel, customer_source, payment_method, source, ship_from, amount, amount_received, pay_status, fulfill_status, settle_status, status, created_at) values
+  ('o-28471', '#GY-28471', 'Camille Laurent', '法国 FR', 'channel', 'backend', 'fair', 'bank_transfer', 'dealer', '法国/欧洲仓', 1186, 1186, 'paid', 'shipped', 'reconciling', 'shipped', '2026-06-20T16:42:00Z'),
+  ('o-28470', '#GY-28470', '林晚晴', '中国 CN', 'retail', 'web_store', 'xhs', 'unpaid', 'web', '中国总部仓', 386, 0, 'unpaid', 'assign', 'unsettled', 'pending', '2026-06-20T15:18:00Z'),
+  ('o-28469', '#GY-28469', 'Michael Cho', '美国 US', 'enterprise', 'api', 'referral', 'credit_term', 'wholesale', '美国仓', 2680, 0, 'unpaid', 'prep', 'unsettled', 'pending', '2026-06-20T14:05:00Z'),
+  ('o-28468', '#GY-28468', 'Hannah Weber', '德国 DE', 'retail', 'web_store', 'instagram', 'alipay', 'web', '法国/欧洲仓', 857, 0, 'paying', 'prep', 'unsettled', 'pending', '2026-06-20T12:36:00Z'),
+  ('o-28467', '#GY-28467', '周慕白', '中国 CN', 'event', 'offline_pos', 'fair', 'wechat_pay', 'fair', '中国总部仓', 188, 188, 'refunded', 'signed', 'reconciling', 'refund', '2026-06-20T11:20:00Z'),
+  ('o-28466', '#GY-28466', 'Sophie Martin', '法国 FR', 'retail', 'web_store', 'whatsapp', 'alipay', 'web', '经销商·Maison Vert', 1536, 1536, 'partial_refund', 'signed', 'reconciling', 'signed', '2026-06-20T09:48:00Z'),
+  ('o-28465', '#GY-28465', '佐藤 健', '日本 JP', 'channel', 'backend', 'referral', 'bank_transfer', 'dealer', '经销商·Tokyo Sake House', 3240, 3240, 'paid', 'signed', 'settled', 'settled', '2026-06-19T18:10:00Z'),
+  ('o-28464', '#GY-28464', 'Lim Wei', '新加坡 SG', 'enterprise', 'api', 'organic', 'unionpay', 'wholesale', '中国总部仓', 1980, 1980, 'paid', 'fulfill_exception', 'reconciling', 'review', '2026-06-19T16:22:00Z'),
+  ('o-28463', '#GY-28463', '陈思远', '中国 CN', 'retail', 'wechat_store', 'wechat', 'wechat_pay', 'wechat', '中国总部仓', 524, 524, 'paid', 'signed', 'settled', 'settled', '2026-06-19T14:51:00Z'),
+  ('o-28462', '#GY-28462', 'Giulia Rossi', '意大利 IT', 'channel', 'backend', 'fair', 'bank_transfer', 'dealer', '法国/欧洲仓', 1476, 0, 'pay_exception', 'assign', 'settle_exception', 'review', '2026-06-19T11:33:00Z'),
+  ('o-28461', '#GY-28461', 'Sophie Martin', '法国 FR', 'retail', 'web_store', 'instagram', 'alipay', 'web', '法国/欧洲仓', 298, 298, 'paid', 'shipped', 'reconciling', 'shipped', '2026-06-19T10:07:00Z'),
+  ('o-28460', '#GY-28460', 'Michael Cho', '美国 US', 'enterprise', 'api', 'referral', 'unionpay', 'wholesale', '美国仓', 4280, 4280, 'paid', 'signed', 'settled', 'settled', '2026-06-18T19:40:00Z'),
+  ('o-28459', '#GY-28459', '林晚晴', '中国 CN', 'retail', 'wechat_store', 'wechat', 'wechat_pay', 'wechat', '中国总部仓', 168, 168, 'paid', 'signed', 'settled', 'settled', '2026-06-18T15:12:00Z'),
+  ('o-28458', '#GY-28458', 'Hannah Weber', '德国 DE', 'sample', 'backend', 'instagram', 'offline', 'dealer', '法国/欧洲仓', 0, 0, 'unpaid', 'prep', 'unsettled', 'pending', '2026-06-18T13:28:00Z'),
+  ('o-28457', '#GY-28457', 'Camille Laurent', '法国 FR', 'reissue', 'backend', 'fair', 'offline', 'dealer', '法国/欧洲仓', 0, 0, 'paid', 'wait_ship', 'unsettled', 'prep', '2026-06-18T09:55:00Z')
 on conflict (id) do nothing;
 
 insert into order_items (id, order_id, product_name, sku_code, qty, price) values
@@ -138,6 +138,40 @@ insert into system_users (id, name, email, role, status, last_active) values
   ('u-004', '赵敏', 'min.zhao@guiye.com', '仓储', 'active', '2026-06-20 15:30'),
   ('u-005', '刘洋', 'yang.liu@guiye.com', '客服', 'invited', '—'),
   ('u-006', 'Sophie Tran', 'sophie.tran@guiye.com', '运营', 'disabled', '2026-05-12 09:14')
+on conflict (id) do nothing;
+
+insert into payments (id, order_no, txn_no, method, merchant_no, amount_due, amount_paid, fee, pay_status, paid_at, arrived, settle_status, refunded) values
+  ('pt-1', '#GY-28471', 'BANK-20260620-4471', 'bank_transfer', '—', 1186, 1186, 0, 'paid', '2026-06-20 16:58:12', true, 'reconciling', 0),
+  ('pt-2', '#GY-28470', 'WX-4200001962-28470', 'wechat_pay', '16018****01', 386, 0, 0, 'unpaid', null, false, 'unsettled', 0),
+  ('pt-3', '#GY-28468', 'ALI-2088****8031', 'alipay', '2088****3021', 857, 0, 0, 'paying', null, false, 'unsettled', 0),
+  ('pt-4', '#GY-28467', 'WX-4200001947-28467', 'wechat_pay', '16018****01', 188, 188, 1.13, 'refunded', '2026-06-20 11:24:06', true, 'reconciling', 188),
+  ('pt-5', '#GY-28466', 'ALI-2088****7788', 'alipay', '2088****3021', 1536, 1536, 9.22, 'partial_refund', '2026-06-20 09:52:41', true, 'reconciling', 336),
+  ('pt-6', '#GY-28465', 'BANK-20260619-4465', 'bank_transfer', '—', 3240, 3240, 0, 'paid', '2026-06-19 18:20:33', true, 'settled', 0),
+  ('pt-7', '#GY-28464', 'UP-8985****0071', 'unionpay', '8985****0071', 1980, 1980, 9.9, 'paid', '2026-06-19 16:31:09', true, 'reconciling', 0),
+  ('pt-8', '#GY-28463', 'WX-4200001938-28463', 'wechat_pay', '16018****01', 524, 524, 3.14, 'paid', '2026-06-19 14:55:02', true, 'settled', 0),
+  ('pt-9', '#GY-28462', 'BANK-20260619-4462', 'bank_transfer', '—', 1476, 0, 0, 'pay_exception', null, false, 'settle_exception', 0),
+  ('pt-10', '#GY-28461', 'ALI-2088****6120', 'alipay', '2088****3021', 298, 298, 1.79, 'paid', '2026-06-19 10:12:55', true, 'reconciling', 0),
+  ('pt-11', '#GY-28460', 'UP-8985****0060', 'unionpay', '8985****0071', 4280, 4280, 21.4, 'paid', '2026-06-18 19:46:18', true, 'settled', 0),
+  ('pt-12', '#GY-28459', 'WX-4200001915-28459', 'wechat_pay', '16018****01', 168, 168, 1.01, 'paid', '2026-06-18 15:16:44', true, 'settled', 0)
+on conflict (id) do nothing;
+
+insert into refunds (id, order_no, refund_no, origin_txn_no, method, applied_amount, actual_amount, reason, operator, applied_at, arrived_at, partial, status) values
+  ('rf-1', '#GY-28467', 'WXR-4620001947-01', 'WX-4200001947-28467', 'wechat_pay', 188, 188, '活动取消 · 全额退款', '刘洋', '2026-06-20 11:40:12', '2026-06-20 11:52:03', false, 'reconciled'),
+  ('rf-2', '#GY-28466', 'ALR-4620007788-01', 'ALI-2088****7788', 'alipay', 236, 236, '一件破损补偿', '王浩然', '2026-06-20 10:30:20', '2026-06-20 10:41:55', true, 'success'),
+  ('rf-3', '#GY-28466', 'ALR-4620007788-02', 'ALI-2088****7788', 'alipay', 100, 100, '运费补偿', '王浩然', '2026-06-20 14:02:10', null, true, 'processing'),
+  ('rf-4', '#GY-28462', 'BKR-4620004462-01', 'BANK-20260619-4462', 'bank_transfer', 1476, 0, '支付异常 · 待人工核实', '王浩然', '2026-06-19 12:10:44', null, false, 'reviewing')
+on conflict (id) do nothing;
+
+insert into admins (id, name, phone, email, level, role, dept, scope, scope_label, status, last_login) values
+  ('a-001', '陈思远', '138 0013 8000', 'siyuan.chen@guiye.com', 'L1', '超级管理员', '管理层', 'all', '全部', 'active', '今天 09:32'),
+  ('a-002', '李明', '139 0013 6621', 'ming.li@guiye.com', 'L2', '订单管理员', '运营部', 'all', '全国订单', 'active', '昨天 18:20'),
+  ('a-003', '张薇', '137 8890 4412', 'wei.zhang@guiye.com', 'L2', '财务管理员', '财务部', 'all', '全部财务', 'active', '今天 08:12'),
+  ('a-004', '孙磊', '150 2231 7788', 'lei.sun@guiye.com', 'L2', '销售管理员', '销售部', 'region', '华东（江苏 / 上海 / 浙江）', 'active', '昨天 20:15'),
+  ('a-005', '王浩', '158 6612 3390', 'hao.wang@guiye.com', 'L3', '客服操作员', '客服部', 'self', '自己负责客户', 'active', '今天 08:56'),
+  ('a-006', '赵敏', '136 5540 9921', 'min.zhao@guiye.com', 'L3', '仓库操作员', '仓储部', 'warehouse', '华东仓', 'active', '今天 07:40'),
+  ('a-007', '周琳', '135 7781 2043', 'lin.zhou@guiye.com', 'L3', '内容操作员', '品牌部', 'self', '仅本人数据', 'pending', '—'),
+  ('a-008', '刘洋', '132 9902 5567', 'yang.liu@guiye.com', 'L3', '销售操作员', '销售部', 'self', '仅本人客户', 'suspended', '3 天前'),
+  ('a-009', 'Sophie Tran', '133 4410 8890', 'sophie.tran@guiye.com', 'L2', '内容管理员', '品牌部', 'all', '全部内容', 'resigned', '2026-05-12 09:14')
 on conflict (id) do nothing;
 
 commit;

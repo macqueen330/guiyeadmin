@@ -6,6 +6,7 @@
 // loadable directly by Node.)
 
 import * as mock from "../src/lib/mock/data.ts";
+import { admins } from "../src/lib/mock/admin.ts";
 
 type Row = Record<string, unknown>;
 
@@ -56,7 +57,7 @@ const blocks: string[] = [
   ),
   insert(
     "orders",
-    ["id", "order_no", "customer_name", "country", "source", "ship_from", "amount", "amount_received", "status", "created_at"],
+    ["id", "order_no", "customer_name", "country", "order_type", "order_channel", "customer_source", "payment_method", "source", "ship_from", "amount", "amount_received", "pay_status", "fulfill_status", "settle_status", "status", "created_at"],
     mock.orders,
   ),
   insert("order_items", ["id", "order_id", "product_name", "sku_code", "qty", "price"], mock.orderItems),
@@ -72,6 +73,21 @@ const blocks: string[] = [
   ),
   insert("brand_assets", ["id", "title", "category", "kind", "size", "updated_at"], mock.brandAssets),
   insert("system_users", ["id", "name", "email", "role", "status", "last_active"], mock.systemUsers),
+  insert(
+    "payments",
+    ["id", "order_no", "txn_no", "method", "merchant_no", "amount_due", "amount_paid", "fee", "pay_status", "paid_at", "arrived", "settle_status", "refunded"],
+    mock.payments,
+  ),
+  insert(
+    "refunds",
+    ["id", "order_no", "refund_no", "origin_txn_no", "method", "applied_amount", "actual_amount", "reason", "operator", "applied_at", "arrived_at", "partial", "status"],
+    mock.refunds,
+  ),
+  insert(
+    "admins",
+    ["id", "name", "phone", "email", "level", "role", "dept", "scope", "scope_label", "status", "last_login"],
+    admins,
+  ),
   "commit;",
   "",
 ];
