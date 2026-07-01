@@ -5,6 +5,7 @@ import { Alerts } from "@/components/dashboard/Alerts";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { RecentOrders } from "@/components/dashboard/RecentOrders";
+import { WebViews } from "@/components/dashboard/WebViews";
 import { getRecentOrders } from "@/lib/data/queries";
 
 // Dynamic so the search-param-aware sidebar renders fully on the server here too
@@ -27,6 +28,10 @@ export default async function DashboardPage() {
   return (
     <>
       <StatStrip stats={todayStats} columns={6} />
+
+      <div style={{ marginBottom: 16 }}>
+        <WebViews compact />
+      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
         <Alerts />
