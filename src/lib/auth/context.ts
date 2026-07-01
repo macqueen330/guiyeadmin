@@ -11,7 +11,7 @@ import {
   canManageAdmins,
   effectiveGrants,
 } from "./permissions";
-import type { Admin, AdminGrant, AdminLevel, DataScope } from "@/lib/types";
+import type { Admin, AdminGrant, AdminLevel, AdminStatus, DataScope } from "@/lib/types";
 
 // httpOnly cookie carrying the session epoch captured at login. Compared against
 // the admin row's session_epoch on every request — a mismatch means the account
@@ -88,9 +88,11 @@ export function isDemoMode(): boolean {
 export interface Viewer {
   id: string;
   name: string;
+  email: string;
   level: AdminLevel;
   role: string;
   dept: string;
+  status: AdminStatus;
   scope: DataScope;
   scopeLabel: string;
   visibleNav: string[];
@@ -103,9 +105,11 @@ export function viewerFor(admin: Admin): Viewer {
   return {
     id: admin.id,
     name: admin.name,
+    email: admin.email,
     level: admin.level,
     role: admin.role,
     dept: admin.dept,
+    status: admin.status,
     scope: admin.scope,
     scopeLabel: admin.scope_label,
     visibleNav: visibleNavKeys(admin),

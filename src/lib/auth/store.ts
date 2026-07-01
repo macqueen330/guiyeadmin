@@ -116,3 +116,23 @@ export async function listAuditLogs(
   if (error || !data) return null;
   return data as AuditLog[];
 }
+
+// Logs for a single admin (个人中心 → 登录设备 / 个人日志).
+export async function listAuditLogsByActor(
+  actorId: string,
+  category?: "auth" | "operation",
+  limit = 50,
+): Promise<AuditLog[] | null> {
+  const sb = getSupabaseAdmin();
+  if (!sb) return null;
+  let q = sb
+    .from("admin_audit_logs")
+    .select("*")
+    .eq("actor_id", actorId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (category) q = q.eq("category", category);
+  const { data, error } = await q;
+  if (error || !data) return null;
+  return data as AuditLog[];
+}

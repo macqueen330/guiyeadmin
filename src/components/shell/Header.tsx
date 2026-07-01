@@ -4,10 +4,17 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { navMetaForPath } from "@/lib/nav";
 import { Icon } from "@/components/ui/Icon";
+import { AdminMenu } from "./AdminMenu";
+
+// Routes that aren't part of the sidebar nav but still need a header title.
+const EXTRA_META: Record<string, { title: string; subtitle: string }> = {
+  "/profile": { title: "个人中心", subtitle: "管理个人资料、账号安全和登录设备" },
+};
 
 export function Header() {
   const pathname = usePathname();
-  const meta = navMetaForPath(pathname);
+  const extra = Object.keys(EXTRA_META).find((p) => pathname === p || pathname.startsWith(p + "/"));
+  const meta = extra ? EXTRA_META[extra] : navMetaForPath(pathname);
   const [bellHover, setBellHover] = useState(false);
   const [exportHover, setExportHover] = useState(false);
 
@@ -85,6 +92,31 @@ export function Header() {
         </div>
 
         <button
+          onMouseEnter={() => setExportHover(true)}
+          onMouseLeave={() => setExportHover(false)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            height: 38,
+            padding: "0 16px",
+            borderRadius: 10,
+            border: "none",
+            background: exportHover ? "var(--accent-strong)" : "var(--accent)",
+            color: "#fff",
+            fontFamily: "inherit",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            boxShadow: "0 2px 8px var(--accent-soft)",
+            transition: "background .14s",
+          }}
+        >
+          <Icon name="download" size={15} />
+          导出报表
+        </button>
+
+        <button
           onMouseEnter={() => setBellHover(true)}
           onMouseLeave={() => setBellHover(false)}
           style={{
@@ -125,30 +157,11 @@ export function Header() {
           </span>
         </button>
 
-        <button
-          onMouseEnter={() => setExportHover(true)}
-          onMouseLeave={() => setExportHover(false)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            height: 38,
-            padding: "0 16px",
-            borderRadius: 10,
-            border: "none",
-            background: exportHover ? "var(--accent-strong)" : "var(--accent)",
-            color: "#fff",
-            fontFamily: "inherit",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-            boxShadow: "0 2px 8px var(--accent-soft)",
-            transition: "background .14s",
-          }}
-        >
-          <Icon name="download" size={15} />
-          导出报表
-        </button>
+        {/* 分隔线 */}
+        <span style={{ width: 1, height: 24, background: "var(--line)", flex: "none" }} />
+
+        {/* 当前管理员个人入口 */}
+        <AdminMenu />
       </div>
     </header>
   );

@@ -96,3 +96,10 @@ button {
   color: var(--ink);
   font-weight: 700;
 }
+
+/* Account menu: collapse to avatar + caret only when the header gets narrow. */
+@media (max-width: 1120px) {
+  .admin-menu-name {
+    display: none !important;
+  }
+}
