@@ -187,7 +187,10 @@ export function OrdersView({
             </span>
             <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
               <span style={{ fontWeight: 600, color: "#2c322e" }}>{o.customer_name}</span>
-              <span style={{ fontSize: 10.5, color: "var(--muted)" }}>{o.country}</span>
+              <span style={{ fontSize: 10.5, color: "var(--muted)" }}>
+                {o.country}
+                {o.province ? ` · ${o.province}` : ""}
+              </span>
             </div>
           </div>
         );
@@ -355,7 +358,7 @@ export function OrdersView({
         rows={rows}
         columns={columns}
         filters={filters}
-        searchText={(o) => `${o.order_no} ${o.customer_name} ${o.country} ${o.ship_from}`}
+        searchText={(o) => `${o.order_no} ${o.customer_name} ${o.country} ${o.province ?? ""} ${o.ship_from}`}
         searchPlaceholder="搜索订单号 / 客户 / 地区"
         empty={view === "exception" ? "暂无发货异常订单" : view === "refund" ? "暂无退款订单" : "该类型暂无订单"}
         rightAction={

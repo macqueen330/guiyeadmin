@@ -7,11 +7,9 @@ import { listAuditLogsByActor, type AuditLog } from "@/lib/auth/store";
 import {
   PERMISSION_MODULES,
   grantedActions,
-  DATA_SCOPE_LABEL,
-  LEVEL_NAME,
   LOGIN_POLICY,
 } from "@/lib/rbac";
-import { ADMIN_LEVEL, ADMIN_STATUS } from "@/lib/tokens";
+import { ADMIN_STATUS } from "@/lib/tokens";
 import { ProfileBasicForm, ChangePasswordForm } from "./ProfileForms";
 import type { Admin } from "@/lib/types";
 
@@ -138,7 +136,6 @@ export default async function ProfilePage({
   const active = TABS.some((t) => t.key === tab) ? tab! : "basic";
   const me: Admin = (await getCurrentAdmin()) ?? DEMO_ADMIN;
 
-  const levelTone = ADMIN_LEVEL[me.level];
   const statusTone = ADMIN_STATUS[me.status];
   const grants = effectiveGrants(me);
 
@@ -176,7 +173,7 @@ export default async function ProfilePage({
         <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 18, fontWeight: 800 }}>{me.name}</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: levelTone.color, background: levelTone.bg, padding: "2px 9px", borderRadius: 20 }}>{LEVEL_NAME[me.level]}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", background: "var(--accent-soft)", padding: "2px 9px", borderRadius: 20 }}>{me.role}</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: statusTone.color, background: statusTone.bg, padding: "2px 9px", borderRadius: 20 }}>{statusTone.text}</span>
           </div>
           <span style={{ fontSize: 12.5, color: "var(--muted)" }}>{me.role} · {me.dept || "—"} · {me.email}</span>
@@ -187,11 +184,9 @@ export default async function ProfilePage({
         <>
           <Card style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18 }}>
             <InfoRow label="姓名" value={me.name} />
-            <InfoRow label="管理员等级" value={`${levelTone.text} · ${LEVEL_NAME[me.level]}`} />
-            <InfoRow label="当前角色" value={me.role} />
+            <InfoRow label="账号角色" value={me.role} />
             <InfoRow label="部门 / 职位" value={me.dept || "—"} />
             <InfoRow label="邮箱（登录账号）" value={me.email} />
-            <InfoRow label="数据范围" value={me.scope_label} />
             <InfoRow label="账号状态" value={<span style={{ color: statusTone.color }}>{statusTone.text}</span>} />
             <InfoRow label="最近登录" value={me.last_login} />
           </Card>
@@ -207,9 +202,7 @@ export default async function ProfilePage({
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <span style={{ fontSize: 15, fontWeight: 700 }}>我的权限</span>
             <span style={{ fontSize: 12, color: "var(--muted)" }}>
-              管理等级 <b>{LEVEL_NAME[me.level]}</b> · 数据范围 <b>{DATA_SCOPE_LABEL[me.scope]}</b>
-              {me.scope_values && me.scope_values.length > 0 ? `（${me.scope_values.join(" / ")}）` : ""}
-              。权限由超级管理员分配，此处仅供查看。
+              账号角色 <b>{me.role}</b> · 拥有系统全部权限。
             </span>
           </div>
           {PERMISSION_MODULES.map((m, i) => {

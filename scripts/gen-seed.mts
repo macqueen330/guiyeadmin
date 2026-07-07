@@ -57,7 +57,7 @@ const blocks: string[] = [
   ),
   insert(
     "orders",
-    ["id", "order_no", "customer_name", "country", "order_type", "order_channel", "customer_source", "payment_method", "source", "ship_from", "amount", "amount_received", "pay_status", "fulfill_status", "settle_status", "status", "created_at"],
+    ["id", "order_no", "customer_name", "country", "province", "order_type", "order_channel", "customer_source", "payment_method", "source", "ship_from", "amount", "amount_received", "pay_status", "fulfill_status", "settle_status", "status", "created_at"],
     mock.orders,
   ),
   insert("order_items", ["id", "order_id", "product_name", "sku_code", "qty", "price"], mock.orderItems),

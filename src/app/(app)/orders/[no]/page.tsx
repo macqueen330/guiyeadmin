@@ -237,7 +237,7 @@ export default async function OrderDetailPage({
             <span style={{ fontSize: 15, fontWeight: 700 }}>订单信息</span>
             <div style={{ marginTop: 8 }}>
               <InfoRow label="客户" value={order.customer_name} />
-              <InfoRow label="国家 / 地区" value={order.country} />
+              <InfoRow label="国家 / 地区" value={order.province ? `${order.country} · ${order.province}` : order.country} />
               <InfoRow label="订单类型" value={ORDER_TYPE[order.order_type].text} />
               <InfoRow label="下单渠道" value={ORDER_CHANNEL[order.order_channel].text} />
               <InfoRow label="客户来源" value={CUSTOMER_SOURCE[order.customer_source].text} />

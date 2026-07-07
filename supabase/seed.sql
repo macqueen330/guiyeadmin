@@ -4,7 +4,7 @@
 begin;
 
 insert into warehouses (id, name, code, region) values
-  ('wh-cn', '中国总部仓', 'CN · 杭州', '中国'),
+  ('wh-cn', '苏州仓', 'CN · 苏州', '中国'),
   ('wh-eu', '法国 / 欧洲仓', 'FR · 里昂', '欧洲'),
   ('wh-us', '美国仓', 'US · 洛杉矶', '美洲'),
   ('wh-dealer', '经销商仓（合计）', '12 家', '经销商')
@@ -73,22 +73,22 @@ insert into customers (id, name, country, email, phone, type, level, orders_coun
   ('c-010', 'Giulia Rossi', '意大利 IT', 'giulia@milanovini.it', '+39 02 8765 4321', 'dealer', '普通', 7, 47600, '2026-06-14', '2024-07-14')
 on conflict (id) do nothing;
 
-insert into orders (id, order_no, customer_name, country, order_type, order_channel, customer_source, payment_method, source, ship_from, amount, amount_received, pay_status, fulfill_status, settle_status, status, created_at) values
-  ('o-28471', '#GY-28471', 'Camille Laurent', '法国 FR', 'channel', 'backend', 'fair', 'bank_transfer', 'dealer', '法国/欧洲仓', 1186, 1186, 'paid', 'shipped', 'reconciling', 'shipped', '2026-06-20T16:42:00Z'),
-  ('o-28470', '#GY-28470', '林晚晴', '中国 CN', 'retail', 'web_store', 'xhs', 'unpaid', 'web', '中国总部仓', 386, 0, 'unpaid', 'assign', 'unsettled', 'pending', '2026-06-20T15:18:00Z'),
-  ('o-28469', '#GY-28469', 'Michael Cho', '美国 US', 'enterprise', 'api', 'referral', 'credit_term', 'wholesale', '美国仓', 2680, 0, 'unpaid', 'prep', 'unsettled', 'pending', '2026-06-20T14:05:00Z'),
-  ('o-28468', '#GY-28468', 'Hannah Weber', '德国 DE', 'retail', 'web_store', 'instagram', 'alipay', 'web', '法国/欧洲仓', 857, 0, 'paying', 'prep', 'unsettled', 'pending', '2026-06-20T12:36:00Z'),
-  ('o-28467', '#GY-28467', '周慕白', '中国 CN', 'event', 'offline_pos', 'fair', 'wechat_pay', 'fair', '中国总部仓', 188, 188, 'refunded', 'signed', 'reconciling', 'refund', '2026-06-20T11:20:00Z'),
-  ('o-28466', '#GY-28466', 'Sophie Martin', '法国 FR', 'retail', 'web_store', 'whatsapp', 'alipay', 'web', '经销商·Maison Vert', 1536, 1536, 'partial_refund', 'signed', 'reconciling', 'signed', '2026-06-20T09:48:00Z'),
-  ('o-28465', '#GY-28465', '佐藤 健', '日本 JP', 'channel', 'backend', 'referral', 'bank_transfer', 'dealer', '经销商·Tokyo Sake House', 3240, 3240, 'paid', 'signed', 'settled', 'settled', '2026-06-19T18:10:00Z'),
-  ('o-28464', '#GY-28464', 'Lim Wei', '新加坡 SG', 'enterprise', 'api', 'organic', 'unionpay', 'wholesale', '中国总部仓', 1980, 1980, 'paid', 'fulfill_exception', 'reconciling', 'review', '2026-06-19T16:22:00Z'),
-  ('o-28463', '#GY-28463', '陈思远', '中国 CN', 'retail', 'wechat_store', 'wechat', 'wechat_pay', 'wechat', '中国总部仓', 524, 524, 'paid', 'signed', 'settled', 'settled', '2026-06-19T14:51:00Z'),
-  ('o-28462', '#GY-28462', 'Giulia Rossi', '意大利 IT', 'channel', 'backend', 'fair', 'bank_transfer', 'dealer', '法国/欧洲仓', 1476, 0, 'pay_exception', 'assign', 'settle_exception', 'review', '2026-06-19T11:33:00Z'),
-  ('o-28461', '#GY-28461', 'Sophie Martin', '法国 FR', 'retail', 'web_store', 'instagram', 'alipay', 'web', '法国/欧洲仓', 298, 298, 'paid', 'shipped', 'reconciling', 'shipped', '2026-06-19T10:07:00Z'),
-  ('o-28460', '#GY-28460', 'Michael Cho', '美国 US', 'enterprise', 'api', 'referral', 'unionpay', 'wholesale', '美国仓', 4280, 4280, 'paid', 'signed', 'settled', 'settled', '2026-06-18T19:40:00Z'),
-  ('o-28459', '#GY-28459', '林晚晴', '中国 CN', 'retail', 'wechat_store', 'wechat', 'wechat_pay', 'wechat', '中国总部仓', 168, 168, 'paid', 'signed', 'settled', 'settled', '2026-06-18T15:12:00Z'),
-  ('o-28458', '#GY-28458', 'Hannah Weber', '德国 DE', 'sample', 'backend', 'instagram', 'offline', 'dealer', '法国/欧洲仓', 0, 0, 'unpaid', 'prep', 'unsettled', 'pending', '2026-06-18T13:28:00Z'),
-  ('o-28457', '#GY-28457', 'Camille Laurent', '法国 FR', 'reissue', 'backend', 'fair', 'offline', 'dealer', '法国/欧洲仓', 0, 0, 'paid', 'wait_ship', 'unsettled', 'prep', '2026-06-18T09:55:00Z')
+insert into orders (id, order_no, customer_name, country, province, order_type, order_channel, customer_source, payment_method, source, ship_from, amount, amount_received, pay_status, fulfill_status, settle_status, status, created_at) values
+  ('o-28471', '#GY-28471', 'Camille Laurent', '法国 FR', null, 'channel', 'backend', 'fair', 'bank_transfer', 'dealer', '法国/欧洲仓', 1186, 1186, 'paid', 'shipped', 'reconciling', 'shipped', '2026-06-20T16:42:00Z'),
+  ('o-28470', '#GY-28470', '林晚晴', '中国 CN', '上海 · 上海', 'retail', 'web_store', 'xhs', 'unpaid', 'web', '苏州仓', 386, 0, 'unpaid', 'assign', 'unsettled', 'pending', '2026-06-20T15:18:00Z'),
+  ('o-28469', '#GY-28469', 'Michael Cho', '美国 US', null, 'enterprise', 'api', 'referral', 'credit_term', 'wholesale', '美国仓', 2680, 0, 'unpaid', 'prep', 'unsettled', 'pending', '2026-06-20T14:05:00Z'),
+  ('o-28468', '#GY-28468', 'Hannah Weber', '德国 DE', null, 'retail', 'web_store', 'instagram', 'alipay', 'web', '法国/欧洲仓', 857, 0, 'paying', 'prep', 'unsettled', 'pending', '2026-06-20T12:36:00Z'),
+  ('o-28467', '#GY-28467', '周慕白', '中国 CN', '江苏 · 苏州', 'event', 'offline_pos', 'fair', 'wechat_pay', 'fair', '苏州仓', 188, 188, 'refunded', 'signed', 'reconciling', 'refund', '2026-06-20T11:20:00Z'),
+  ('o-28466', '#GY-28466', 'Sophie Martin', '法国 FR', null, 'retail', 'web_store', 'whatsapp', 'alipay', 'web', '经销商·Maison Vert', 1536, 1536, 'partial_refund', 'signed', 'reconciling', 'signed', '2026-06-20T09:48:00Z'),
+  ('o-28465', '#GY-28465', '佐藤 健', '日本 JP', null, 'channel', 'backend', 'referral', 'bank_transfer', 'dealer', '经销商·Tokyo Sake House', 3240, 3240, 'paid', 'signed', 'settled', 'settled', '2026-06-19T18:10:00Z'),
+  ('o-28464', '#GY-28464', 'Lim Wei', '新加坡 SG', null, 'enterprise', 'api', 'organic', 'unionpay', 'wholesale', '苏州仓', 1980, 1980, 'paid', 'fulfill_exception', 'reconciling', 'review', '2026-06-19T16:22:00Z'),
+  ('o-28463', '#GY-28463', '陈思远', '中国 CN', '浙江 · 杭州', 'retail', 'wechat_store', 'wechat', 'wechat_pay', 'wechat', '苏州仓', 524, 524, 'paid', 'signed', 'settled', 'settled', '2026-06-19T14:51:00Z'),
+  ('o-28462', '#GY-28462', 'Giulia Rossi', '意大利 IT', null, 'channel', 'backend', 'fair', 'bank_transfer', 'dealer', '法国/欧洲仓', 1476, 0, 'pay_exception', 'assign', 'settle_exception', 'review', '2026-06-19T11:33:00Z'),
+  ('o-28461', '#GY-28461', 'Sophie Martin', '法国 FR', null, 'retail', 'web_store', 'instagram', 'alipay', 'web', '法国/欧洲仓', 298, 298, 'paid', 'shipped', 'reconciling', 'shipped', '2026-06-19T10:07:00Z'),
+  ('o-28460', '#GY-28460', 'Michael Cho', '美国 US', null, 'enterprise', 'api', 'referral', 'unionpay', 'wholesale', '美国仓', 4280, 4280, 'paid', 'signed', 'settled', 'settled', '2026-06-18T19:40:00Z'),
+  ('o-28459', '#GY-28459', '林晚晴', '中国 CN', '上海 · 上海', 'retail', 'wechat_store', 'wechat', 'wechat_pay', 'wechat', '苏州仓', 168, 168, 'paid', 'signed', 'settled', 'settled', '2026-06-18T15:12:00Z'),
+  ('o-28458', '#GY-28458', 'Hannah Weber', '德国 DE', null, 'sample', 'backend', 'instagram', 'offline', 'dealer', '法国/欧洲仓', 0, 0, 'unpaid', 'prep', 'unsettled', 'pending', '2026-06-18T13:28:00Z'),
+  ('o-28457', '#GY-28457', 'Camille Laurent', '法国 FR', null, 'reissue', 'backend', 'fair', 'offline', 'dealer', '法国/欧洲仓', 0, 0, 'paid', 'wait_ship', 'unsettled', 'prep', '2026-06-18T09:55:00Z')
 on conflict (id) do nothing;
 
 insert into order_items (id, order_id, product_name, sku_code, qty, price) values

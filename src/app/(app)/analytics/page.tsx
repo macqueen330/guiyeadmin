@@ -180,7 +180,7 @@ export default async function AnalyticsPage({
     );
   }
 
-  // ---- 渠道分析（不含合伙人佣金 / 层级）----
+  // ---- 渠道分析 ----
   if (active === "channel") {
     const newChannel = dealers.filter((d) => d.created_at >= "2024-01-01").length;
     const channelSales = dealers.reduce((s, d) => s + d.mtd_sales, 0);
@@ -212,7 +212,7 @@ export default async function AnalyticsPage({
         <div style={{ marginTop: 16 }}>
           <BarRows
             title="客户跟进阶段"
-            subtitle="意向 → 报价 → 样品 → 成交（暂不涉及合伙人佣金与层级）"
+            subtitle="意向 → 报价 → 样品 → 成交"
             bars={funnel.map((f, i) => ({
               label: f.label,
               value: f.value,
