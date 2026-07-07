@@ -322,3 +322,7 @@ begin
   execute 'alter table admin_audit_logs enable row level security';
   execute 'drop policy if exists "public read" on admin_audit_logs';
 end $$;
+
+-- ===== 0004_order_province_suzhou.sql =====
+-- 订单国内省 / 市字段。
+alter table orders add column if not exists province text;
