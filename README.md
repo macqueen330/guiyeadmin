@@ -26,7 +26,7 @@
 | `/brand` | 品牌内容（品牌运营） | 官网内容 / 图片视频 / 宣传资料 / 渠道资料 / 多语言内容 | 官网内容可直接编辑 Banner/产品介绍/品牌故事（中英文），不只是上传文件 |
 | `/finance` | 财务结算（经营管理） | 收款 / 退款 / 发票 / 对账 / 应收款 | 从原「物流财务」拆出；回款、应收逾期、退款与对账 |
 | `/analytics` | 数据分析（经营管理） | 经营总览 / 消费者分析 / 渠道分析 / 商品分析 | KPI 用「回款」替代毛利率；渠道占比拆为「销售渠道 + 客户来源」两套口径；地区可切换国内省市/海外国家；产品销售排行替代重复的渠道排行 |
-| `/settings` | 系统设置 | 账号与权限 / 员工管理 / 商品设置 / 订单规则 / 消息通知 / 操作日志 | 角色权限、账号安全、通知开关与操作审计 |
+| `/settings` | 系统设置 | 安全策略 / 消息通知 / 操作日志 / 商品设置 / 订单规则 | 账号安全、通知开关、操作审计与业务规则（单人使用，不含多级管理员）|
 
 所有列表均支持客户端实时搜索与下拉筛选；侧边栏二级菜单可展开/收起，导航高亮、页面标题随路由切换。
 
@@ -50,7 +50,8 @@ npm run dev                  # http://localhost:3000
 2. 打开 **SQL Editor**，依次执行：
    - `supabase/migrations/0001_init.sql`（基础表 + 视图 + 公开只读 RLS）
    - `supabase/migrations/0002_orders_payments_admin.sql`（订单支付/履约/结算字段 + 支付流水 / 退款 / 管理员表）
-   - `supabase/migrations/0003_admin_auth_rbac.sql`（管理员登录鉴权 + 权限/数据范围字段 + 审计日志 + RLS 收紧）
+   - `supabase/migrations/0003_admin_auth_rbac.sql`（管理员登录鉴权 + 审计日志 + RLS 收紧）
+   - `supabase/migrations/0004_order_province_suzhou.sql`（订单国内省市字段 + 中国仓库改为苏州仓）
    - `supabase/seed.sql`（导入示例数据，可选）
 3. 在 **Project Settings → API** 复制 `Project URL`、`anon public` key 与 `service_role` key，填入环境变量：
 
@@ -73,68 +74,44 @@ npm run dev                  # http://localhost:3000
 
 ---
 
-## 管理员系统（登录鉴权 · RBAC · 数据范围 · 审计）
+## 登录鉴权（单人使用）
 
-填入 `SUPABASE_SERVICE_ROLE_KEY` 后自动启用。基于 **Supabase Auth**（密码加密托管，系统不存明文），
-权限模型沿用 `src/lib/rbac.ts` 的「管理员等级 + 模块权限 + 数据范围」。
+本控制台为**单人（店主本人）使用**：一个超级管理员账号 + 全部权限，不设多级管理员 / 合伙人 / 分权。
+填入 `SUPABASE_SERVICE_ROLE_KEY` 后启用真实登录；未填写则为只读演示模式（内置超级管理员身份，便于预览）。
+基于 **Supabase Auth**（密码加密托管，系统不存明文）。
 
-### 1. 创建第一个超级管理员
+### 1. 创建你的登录账号
 
 ```bash
-npm run admin:create -- --email admin@guiye.com --password 'Guiye2026pass' --name 超级管理员
+npm run admin:create -- --email admin@guiye.com --password 'Guiye2026pass' --name 你的名字
 # 需要 .env.local 中的 NEXT_PUBLIC_SUPABASE_URL 与 SUPABASE_SERVICE_ROLE_KEY
 ```
 
-之后访问 `/login` 用该邮箱登录；其余账号在 **系统设置 → 员工管理 → 创建管理员** 中创建。
+之后访问 `/login` 用该邮箱登录。
 
 ### 2. 鉴权与会话（`src/proxy.ts` + `src/lib/auth/`）
 
 - **`src/proxy.ts`**（Next.js 16 已将 `middleware` 更名为 `proxy`，Node 运行时）刷新 Supabase 会话，
   未登录访问任何后台路由 → 统一 302 跳转 `/login?redirect=…`。
-- **`src/app/(app)/layout.tsx`** 服务端 `requireAdmin()` 是真正的门禁：校验账号状态，
-  `active` 以外（待激活 / 停用 / 锁定 / 离职 / 注销）一律拒绝进入。
+- **`src/app/(app)/layout.tsx`** 服务端 `requireAdmin()` 是真正的门禁；仅 `active` 账号可进入。
 - **会话保持**：Supabase SSR Cookie，刷新后保持登录。
-- **强制退出**：`admins.session_epoch` 自增 + 登录时写入 httpOnly `gy-epoch` Cookie；两者不一致即判定失效，旧会话立即被踢下线。
-- **退出登录 / 30 分钟无操作自动退出**：`signOutAction` / `IdleLogout`。
-- 登录页与状态校验永远以服务端为准，前端 `Viewer` 仅用于菜单/按钮显隐。
+- **退出登录 / 强制退出 / 30 分钟无操作自动退出**：`signOutAction` / `session_epoch` / `IdleLogout`。
+- 校验永远以服务端为准，前端 `Viewer` 仅用于展示。
 
-### 3. RBAC 五层校验
+### 3. 个人中心与审计
 
-| 层 | 位置 |
-| --- | --- |
-| 菜单显示 | `Sidebar` 按 `viewer.visibleNav` 过滤 |
-| 页面访问 | 各页 `getCurrentAdmin()` + `<Forbidden/>`；三级管理员进 `/settings` 管理页 → 403 |
-| 按钮操作 | `StaffView` / `AdminEditor` 依 `manageError()` 显隐并二次确认 |
-| Server Actions | `src/app/(app)/settings/actions.ts` 每个动作 `gate()` 重新校验身份与权限 |
-| 数据库查询范围 | `src/lib/data/scope.ts` 把数据范围下推到 Supabase 查询（`.in()`），mock 回退同样过滤 |
+- **`/profile` 个人中心**：基本资料 / 账号与权限（只读，展示你拥有全部权限）/ 安全设置（改密码）/ 登录设备 / 个人日志。
+- **系统设置**：安全策略 / 消息通知 / 操作日志 / 商品设置 / 订单规则。
+- **审计**：`admin_audit_logs` 记录登录成功/失败/退出与关键操作（操作人、时间、IP、设备、前后值），RLS 无 delete 策略。
 
-权限存于 `admins.grants(jsonb)` / `scope(+scope_values)`，**运行时修改即时生效，无需重新部署**。
-绕过手段（改 URL / 改管理员 ID / 改请求参数）都会在 Server Action 与数据层被重新鉴权拦截。
+### 4. 安全
 
-### 4. 账号管理业务规则
+- 连续输错 **5 次锁定账号 30 分钟**（到期自动解锁）。
+- 改密码需校验旧密码；密码 ≥8 位且含字母 + 数字，由 Supabase Auth 加密存储。
+- 二次验证（2FA）字段已预留（`two_factor`），实际 TOTP / 新设备验证码为后续项。
 
-- 不物理删除（用状态 / `deleted_at` 软删除）。
-- 最后一个启用的一级超级管理员**不可被停用 / 降级**。
-- **当前管理员不可停用 / 锁定自己**。
-- **二级管理员只能创建与管理三级管理员**；**三级管理员不能进入管理员管理页面**。
-- 一级账号只能由现有一级管理员创建。
-
-### 5. 安全策略
-
-- 连续输错 **5 次锁定账号 30 分钟**（`locked_until` 到期自动解锁，或一级手动解锁）。
-- 敏感操作（停用 / 锁定 / 重置密码 / 强制退出）二次确认。
-- 密码强度：≥8 位且含字母 + 数字；密码由 Supabase Auth 加密存储。
-- 一级二次验证（2FA）字段已预留（`two_factor`），新设备验证码为预留位。
-
-### 6. 审计（操作日志 + 登录日志）
-
-`admin_audit_logs` 记录登录成功/失败/退出、创建/编辑/停用/重置密码/强制退出等，
-含操作人、时间、IP、设备、操作对象、修改前/后。RLS 无 delete 策略 → 普通管理员无法删除日志。
-在 **系统设置 → 操作日志** 查看（一级或获授权者可见）。
-
-> **未完成 / 后续**：新设备验证码与 TOTP 双因子仅预留字段；数据范围中「指定部门」缺少行级 dept 字段，
-> 需要为 `orders`/`customers` 落实 `owner_admin_id` / 区域 / 仓库归属后，`self`/`subordinate`/`region`/`warehouse`
-> 才能在真实数据上完整生效（迁移已加 `owner_admin_id` 列与索引，逻辑已就绪）。
+> **说明**：早期的多级管理员（等级 / 角色模板 / 员工管理 / 审批 / 数据范围）已按“单人使用”移除；
+> `admins` 表相关列保留但不再暴露对应界面。
 
 ---
 

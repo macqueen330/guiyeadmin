@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { ADMIN_LEVEL, ADMIN_STATUS } from "@/lib/tokens";
-import { LEVEL_NAME } from "@/lib/rbac";
+import { ADMIN_STATUS } from "@/lib/tokens";
 import { useViewer } from "./AdminProvider";
 import { signOutAction } from "@/lib/auth/actions";
 
@@ -78,7 +77,6 @@ export function AdminMenu() {
     };
   }, [open]);
 
-  const levelTone = ADMIN_LEVEL[viewer.level];
   const statusTone = ADMIN_STATUS[viewer.status];
   const close = () => setOpen(false);
 
@@ -105,7 +103,7 @@ export function AdminMenu() {
         <Avatar name={viewer.name} />
         <span className="admin-menu-name" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.15, minWidth: 0 }}>
           <span style={{ fontSize: 12.5, fontWeight: 700, color: "#2c322e", whiteSpace: "nowrap" }}>{viewer.name}</span>
-          <span style={{ fontSize: 10, color: levelTone.color, fontWeight: 600 }}>{levelTone.text}管理员</span>
+          <span style={{ fontSize: 10, color: "var(--accent)", fontWeight: 600 }}>{viewer.role}</span>
         </span>
         <Icon name="caretDown" size={14} color="#9a9f9a" style={{ flex: "none" }} />
       </button>
@@ -132,8 +130,7 @@ export function AdminMenu() {
             <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
               <span style={{ fontSize: 14.5, fontWeight: 700, color: "#2c322e" }}>{viewer.name}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: levelTone.color, background: levelTone.bg, padding: "1px 8px", borderRadius: 20 }}>{LEVEL_NAME[viewer.level]}</span>
-                <span style={{ fontSize: 11.5, color: "#4a514c" }}>{viewer.role}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--accent)", background: "var(--accent-soft)", padding: "1px 8px", borderRadius: 20 }}>{viewer.role}</span>
               </div>
               <span style={{ fontSize: 11.5, color: "var(--muted)" }}>{viewer.dept || "—"}</span>
               <span style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 5 }}>

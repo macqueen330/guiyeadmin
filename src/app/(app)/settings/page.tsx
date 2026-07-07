@@ -1,20 +1,12 @@
 import type { ReactNode } from "react";
-import { StatStrip, type Stat } from "@/components/ui/StatStrip";
 import { Card } from "@/components/ui/Card";
 import { SubTabs } from "@/components/ui/SubTabs";
 import { ModulePlaceholder } from "@/components/ui/ModulePlaceholder";
-import { Forbidden } from "@/components/ui/Forbidden";
-import { admins as mockAdmins } from "@/lib/mock/admin";
-import { listAdmins, listAuditLogs, type AuditLog } from "@/lib/auth/store";
-import { getCurrentAdmin, DEMO_ADMIN } from "@/lib/auth/context";
-import { can, canManageAdmins } from "@/lib/auth/permissions";
+import { listAuditLogs, type AuditLog } from "@/lib/auth/store";
 import { navItemByKey, activeSubView } from "@/lib/nav";
 import { ADMIN_LEVEL } from "@/lib/tokens";
 import { AUDITED_ACTIONS } from "@/lib/rbac";
 import type { AdminLevel } from "@/lib/types";
-import { AdminPermissions } from "./AdminPermissions";
-import { StaffView } from "./StaffView";
-import { ApprovalRules } from "./ApprovalRules";
 import { SecurityPolicy } from "./SecurityPolicy";
 
 function OnValue({ text }: { text: string }) {
@@ -60,17 +52,16 @@ function Panel({ title, subtitle, rows }: { title: string; subtitle: string; row
 
 // Fallback sample shown only in demo mode (no DB / audit table).
 const SAMPLE_LOGS: AuditLog[] = [
-  { id: "1", category: "operation", action: "set_status", actor_id: null, actor_name: "李明", actor_level: "L2", target_id: null, target_name: "GY-28471", module: "订单中心", detail: "将订单 GY-28471 状态从「待发货」改为「已发货」", ip: "已记录", device: "Windows / Edge", result: "success", created_at: "2026-07-01 15:26" },
-  { id: "2", category: "operation", action: "reset_password", actor_id: null, actor_name: "陈思远", actor_level: "L1", target_id: null, target_name: "刘洋", module: "系统设置", detail: "重置管理员「刘洋」的登录密码", ip: "已记录", device: "macOS / Safari", result: "success", created_at: "2026-06-30 18:22" },
-  { id: "3", category: "auth", action: "login_success", actor_id: null, actor_name: "王浩", actor_level: "L3", target_id: null, target_name: null, module: null, detail: "登录成功", ip: "已记录", device: "Windows / Chrome", result: "success", created_at: "2026-07-01 10:05" },
-  { id: "4", category: "auth", action: "login_fail", actor_id: null, actor_name: "刘洋", actor_level: "L3", target_id: null, target_name: null, module: null, detail: "密码错误（第 2 次）", ip: "已记录", device: "Android / App", result: "fail", created_at: "2026-06-30 09:11" },
+  { id: "1", category: "operation", action: "set_status", actor_id: null, actor_name: "陈思远", actor_level: "L1", target_id: null, target_name: "GY-28471", module: "订单中心", detail: "将订单 GY-28471 状态从「待发货」改为「已发货」", ip: "已记录", device: "Windows / Edge", result: "success", created_at: "2026-07-01 15:26" },
+  { id: "2", category: "operation", action: "update_profile", actor_id: null, actor_name: "陈思远", actor_level: "L1", target_id: null, target_name: "陈思远", module: "个人中心", detail: "修改本人基本资料", ip: "已记录", device: "macOS / Safari", result: "success", created_at: "2026-06-30 18:22" },
+  { id: "3", category: "auth", action: "login_success", actor_id: null, actor_name: "陈思远", actor_level: "L1", target_id: null, target_name: null, module: null, detail: "登录成功", ip: "已记录", device: "macOS / Chrome", result: "success", created_at: "2026-07-01 09:32" },
 ];
 
 const th: React.CSSProperties = { textAlign: "left", fontSize: 11, fontWeight: 600, color: "#9a9f9a", padding: "10px 8px", borderBottom: "1px solid var(--line)" };
 const td: React.CSSProperties = { padding: "11px 8px", borderBottom: "1px solid var(--line)", fontSize: 12.5 };
 
 function LevelTag({ level }: { level: string | null }) {
-  const t = ADMIN_LEVEL[(level as AdminLevel) ?? "L3"] ?? ADMIN_LEVEL.L3;
+  const t = ADMIN_LEVEL[(level as AdminLevel) ?? "L1"] ?? ADMIN_LEVEL.L1;
   return <span style={{ fontSize: 10, fontWeight: 700, color: t.color, background: t.bg, padding: "1px 7px", borderRadius: 20 }}>{t.text}</span>;
 }
 
@@ -137,34 +128,15 @@ export default async function SettingsPage({
 }) {
   const { view } = await searchParams;
   const item = navItemByKey("settings");
-  const active = activeSubView(item, view)?.key ?? "account";
-
-  const me = (await getCurrentAdmin()) ?? DEMO_ADMIN;
-  const admins = (await listAdmins()) ?? mockAdmins;
-  const manages = canManageAdmins(me);
-  const canViewLogs = me.level === "L1" || can(me, "system", "查看操作日志");
-
-  const count = (s: string) => admins.filter((u) => u.status === s).length;
-  const l1 = admins.filter((u) => u.level === "L1").length;
-
-  const stats: Stat[] = [
-    { label: "管理员数", value: String(admins.length), sub: "全部账号", icon: "users", iconColor: "var(--accent)", iconBg: "var(--accent-soft)" },
-    { label: "启用中", value: String(count("active")), icon: "check", iconColor: "#16894f", iconBg: "#e9f5ef", valueColor: "#16894f" },
-    { label: "待激活", value: String(count("pending")), icon: "mail", iconColor: "#b45309", iconBg: "#fff7ec", valueColor: "#b45309" },
-    { label: "一级管理员", value: String(l1), sub: "超级管理员", icon: "settings", iconColor: "#b07d18", iconBg: "#fbf4e3", valueColor: "#b07d18" },
-  ];
+  const active = activeSubView(item, view)?.key ?? "security";
 
   const opLogs = (await listAuditLogs("operation", 100)) ?? SAMPLE_LOGS.filter((l) => l.category === "operation");
   const authLogs = (await listAuditLogs("auth", 100)) ?? SAMPLE_LOGS.filter((l) => l.category === "auth");
 
   return (
     <>
-      <StatStrip stats={stats} />
       <SubTabs item={item} active={active} />
 
-      {active === "account" && (manages ? <AdminPermissions /> : <Forbidden hint="账号与权限仅一级 / 二级管理员可查看。" />)}
-      {active === "staff" && (manages ? <StaffView admins={admins} /> : <Forbidden hint="员工管理仅一级 / 二级管理员可访问。" />)}
-      {active === "approval" && <ApprovalRules />}
       {active === "security" && <SecurityPolicy />}
 
       {active === "notify" && (
@@ -176,31 +148,27 @@ export default async function SettingsPage({
             { label: "库存预警提醒", sub: "低于安全库存时", value: <OnValue text="已开启" /> },
             { label: "渠道客户跟进提醒", sub: "超 7 天未跟进", value: <OnValue text="已开启" /> },
             { label: "回款 / 应收提醒", sub: "应收逾期时", value: <OnValue text="已开启" /> },
-            { label: "审批提醒", sub: "有待审批事项时", value: <OnValue text="已开启" /> },
             { label: "售后退款提醒", sub: "新退款申请时", value: <span style={{ color: "var(--muted)" }}>仅站内</span> },
           ]}
         />
       )}
 
-      {active === "logs" &&
-        (canViewLogs ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <LogTable title="操作日志" subtitle="重要操作全程留痕 · 普通管理员不可删除" logs={opLogs} />
-            <LogTable title="登录日志" subtitle="登录成功 / 失败 / 退出记录" logs={authLogs} />
-            <Card style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <span style={{ fontSize: 13.5, fontWeight: 700 }}>留痕范围</span>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {AUDITED_ACTIONS.map((x) => (
-                  <span key={x} style={{ fontSize: 11.5, fontWeight: 600, color: "#4a514c", background: "var(--bg)", border: "1px solid var(--line)", padding: "5px 11px", borderRadius: 7 }}>
-                    {x}
-                  </span>
-                ))}
-              </div>
-            </Card>
-          </div>
-        ) : (
-          <Forbidden hint="操作日志仅一级管理员或获授权的管理员可查看。" />
-        ))}
+      {active === "logs" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <LogTable title="操作日志" subtitle="重要操作全程留痕" logs={opLogs} />
+          <LogTable title="登录日志" subtitle="登录成功 / 失败 / 退出记录" logs={authLogs} />
+          <Card style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <span style={{ fontSize: 13.5, fontWeight: 700 }}>留痕范围</span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {AUDITED_ACTIONS.map((x) => (
+                <span key={x} style={{ fontSize: 11.5, fontWeight: 600, color: "#4a514c", background: "var(--bg)", border: "1px solid var(--line)", padding: "5px 11px", borderRadius: 7 }}>
+                  {x}
+                </span>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {active === "product" && (
         <ModulePlaceholder

@@ -44,7 +44,7 @@ export const kpis: Kpi[] = [
 ];
 
 export const warehouses: Warehouse[] = [
-  { id: "wh-cn", name: "中国总部仓", code: "CN · 杭州", region: "中国" },
+  { id: "wh-cn", name: "苏州仓", code: "CN · 苏州", region: "中国" },
   { id: "wh-eu", name: "法国 / 欧洲仓", code: "FR · 里昂", region: "欧洲" },
   { id: "wh-us", name: "美国仓", code: "US · 洛杉矶", region: "美洲" },
   { id: "wh-dealer", name: "经销商仓（合计）", code: "12 家", region: "经销商" },
@@ -168,6 +168,7 @@ interface OrderSeed {
   order_no: string;
   customer_name: string;
   country: string;
+  province?: string;
   order_type: OrderType;
   order_channel: OrderChannel;
   customer_source: CustomerSource;
@@ -191,18 +192,18 @@ function mkOrder(s: OrderSeed): Order {
 
 export const orders: Order[] = [
   mkOrder({ id: "o-28471", order_no: "#GY-28471", customer_name: "Camille Laurent", country: "法国 FR", order_type: "channel", order_channel: "backend", customer_source: "fair", payment_method: "bank_transfer", ship_from: "法国/欧洲仓", amount: 1186, amount_received: 1186, pay_status: "paid", fulfill_status: "shipped", settle_status: "reconciling", created_at: "2026-06-20T16:42:00Z" }),
-  mkOrder({ id: "o-28470", order_no: "#GY-28470", customer_name: "林晚晴", country: "中国 CN", order_type: "retail", order_channel: "web_store", customer_source: "xhs", payment_method: "unpaid", ship_from: "中国总部仓", amount: 386, amount_received: 0, pay_status: "unpaid", fulfill_status: "assign", settle_status: "unsettled", created_at: "2026-06-20T15:18:00Z" }),
+  mkOrder({ id: "o-28470", order_no: "#GY-28470", customer_name: "林晚晴", country: "中国 CN", province: "上海 · 上海", order_type: "retail", order_channel: "web_store", customer_source: "xhs", payment_method: "unpaid", ship_from: "苏州仓", amount: 386, amount_received: 0, pay_status: "unpaid", fulfill_status: "assign", settle_status: "unsettled", created_at: "2026-06-20T15:18:00Z" }),
   mkOrder({ id: "o-28469", order_no: "#GY-28469", customer_name: "Michael Cho", country: "美国 US", order_type: "enterprise", order_channel: "api", customer_source: "referral", payment_method: "credit_term", ship_from: "美国仓", amount: 2680, amount_received: 0, pay_status: "unpaid", fulfill_status: "prep", settle_status: "unsettled", created_at: "2026-06-20T14:05:00Z" }),
   mkOrder({ id: "o-28468", order_no: "#GY-28468", customer_name: "Hannah Weber", country: "德国 DE", order_type: "retail", order_channel: "web_store", customer_source: "instagram", payment_method: "alipay", ship_from: "法国/欧洲仓", amount: 857, amount_received: 0, pay_status: "paying", fulfill_status: "prep", settle_status: "unsettled", created_at: "2026-06-20T12:36:00Z" }),
-  mkOrder({ id: "o-28467", order_no: "#GY-28467", customer_name: "周慕白", country: "中国 CN", order_type: "event", order_channel: "offline_pos", customer_source: "fair", payment_method: "wechat_pay", ship_from: "中国总部仓", amount: 188, amount_received: 188, pay_status: "refunded", fulfill_status: "signed", settle_status: "reconciling", created_at: "2026-06-20T11:20:00Z" }),
+  mkOrder({ id: "o-28467", order_no: "#GY-28467", customer_name: "周慕白", country: "中国 CN", province: "江苏 · 苏州", order_type: "event", order_channel: "offline_pos", customer_source: "fair", payment_method: "wechat_pay", ship_from: "苏州仓", amount: 188, amount_received: 188, pay_status: "refunded", fulfill_status: "signed", settle_status: "reconciling", created_at: "2026-06-20T11:20:00Z" }),
   mkOrder({ id: "o-28466", order_no: "#GY-28466", customer_name: "Sophie Martin", country: "法国 FR", order_type: "retail", order_channel: "web_store", customer_source: "whatsapp", payment_method: "alipay", ship_from: "经销商·Maison Vert", amount: 1536, amount_received: 1536, pay_status: "partial_refund", fulfill_status: "signed", settle_status: "reconciling", created_at: "2026-06-20T09:48:00Z" }),
   mkOrder({ id: "o-28465", order_no: "#GY-28465", customer_name: "佐藤 健", country: "日本 JP", order_type: "channel", order_channel: "backend", customer_source: "referral", payment_method: "bank_transfer", ship_from: "经销商·Tokyo Sake House", amount: 3240, amount_received: 3240, pay_status: "paid", fulfill_status: "signed", settle_status: "settled", created_at: "2026-06-19T18:10:00Z" }),
-  mkOrder({ id: "o-28464", order_no: "#GY-28464", customer_name: "Lim Wei", country: "新加坡 SG", order_type: "enterprise", order_channel: "api", customer_source: "organic", payment_method: "unionpay", ship_from: "中国总部仓", amount: 1980, amount_received: 1980, pay_status: "paid", fulfill_status: "fulfill_exception", settle_status: "reconciling", created_at: "2026-06-19T16:22:00Z" }),
-  mkOrder({ id: "o-28463", order_no: "#GY-28463", customer_name: "陈思远", country: "中国 CN", order_type: "retail", order_channel: "wechat_store", customer_source: "wechat", payment_method: "wechat_pay", ship_from: "中国总部仓", amount: 524, amount_received: 524, pay_status: "paid", fulfill_status: "signed", settle_status: "settled", created_at: "2026-06-19T14:51:00Z" }),
+  mkOrder({ id: "o-28464", order_no: "#GY-28464", customer_name: "Lim Wei", country: "新加坡 SG", order_type: "enterprise", order_channel: "api", customer_source: "organic", payment_method: "unionpay", ship_from: "苏州仓", amount: 1980, amount_received: 1980, pay_status: "paid", fulfill_status: "fulfill_exception", settle_status: "reconciling", created_at: "2026-06-19T16:22:00Z" }),
+  mkOrder({ id: "o-28463", order_no: "#GY-28463", customer_name: "陈思远", country: "中国 CN", province: "浙江 · 杭州", order_type: "retail", order_channel: "wechat_store", customer_source: "wechat", payment_method: "wechat_pay", ship_from: "苏州仓", amount: 524, amount_received: 524, pay_status: "paid", fulfill_status: "signed", settle_status: "settled", created_at: "2026-06-19T14:51:00Z" }),
   mkOrder({ id: "o-28462", order_no: "#GY-28462", customer_name: "Giulia Rossi", country: "意大利 IT", order_type: "channel", order_channel: "backend", customer_source: "fair", payment_method: "bank_transfer", ship_from: "法国/欧洲仓", amount: 1476, amount_received: 0, pay_status: "pay_exception", fulfill_status: "assign", settle_status: "settle_exception", created_at: "2026-06-19T11:33:00Z" }),
   mkOrder({ id: "o-28461", order_no: "#GY-28461", customer_name: "Sophie Martin", country: "法国 FR", order_type: "retail", order_channel: "web_store", customer_source: "instagram", payment_method: "alipay", ship_from: "法国/欧洲仓", amount: 298, amount_received: 298, pay_status: "paid", fulfill_status: "shipped", settle_status: "reconciling", created_at: "2026-06-19T10:07:00Z" }),
   mkOrder({ id: "o-28460", order_no: "#GY-28460", customer_name: "Michael Cho", country: "美国 US", order_type: "enterprise", order_channel: "api", customer_source: "referral", payment_method: "unionpay", ship_from: "美国仓", amount: 4280, amount_received: 4280, pay_status: "paid", fulfill_status: "signed", settle_status: "settled", created_at: "2026-06-18T19:40:00Z" }),
-  mkOrder({ id: "o-28459", order_no: "#GY-28459", customer_name: "林晚晴", country: "中国 CN", order_type: "retail", order_channel: "wechat_store", customer_source: "wechat", payment_method: "wechat_pay", ship_from: "中国总部仓", amount: 168, amount_received: 168, pay_status: "paid", fulfill_status: "signed", settle_status: "settled", created_at: "2026-06-18T15:12:00Z" }),
+  mkOrder({ id: "o-28459", order_no: "#GY-28459", customer_name: "林晚晴", country: "中国 CN", province: "上海 · 上海", order_type: "retail", order_channel: "wechat_store", customer_source: "wechat", payment_method: "wechat_pay", ship_from: "苏州仓", amount: 168, amount_received: 168, pay_status: "paid", fulfill_status: "signed", settle_status: "settled", created_at: "2026-06-18T15:12:00Z" }),
   mkOrder({ id: "o-28458", order_no: "#GY-28458", customer_name: "Hannah Weber", country: "德国 DE", order_type: "sample", order_channel: "backend", customer_source: "instagram", payment_method: "offline", ship_from: "法国/欧洲仓", amount: 0, amount_received: 0, pay_status: "unpaid", fulfill_status: "prep", settle_status: "unsettled", created_at: "2026-06-18T13:28:00Z" }),
   mkOrder({ id: "o-28457", order_no: "#GY-28457", customer_name: "Camille Laurent", country: "法国 FR", order_type: "reissue", order_channel: "backend", customer_source: "fair", payment_method: "offline", ship_from: "法国/欧洲仓", amount: 0, amount_received: 0, pay_status: "paid", fulfill_status: "wait_ship", settle_status: "unsettled", created_at: "2026-06-18T09:55:00Z" }),
 ];
@@ -345,7 +346,7 @@ export const alerts: AlertItem[] = [
 ];
 
 export const warehouseStock: WarehouseStock[] = [
-  { name: "中国总部仓", code: "CN · 杭州", sellable: 18420, locked: 2310, transit: 1560, low: 0 },
+  { name: "苏州仓", code: "CN · 苏州", sellable: 18420, locked: 2310, transit: 1560, low: 0 },
   { name: "法国 / 欧洲仓", code: "FR · 里昂", sellable: 6240, locked: 980, transit: 3120, low: 2 },
   { name: "美国仓", code: "US · 洛杉矶", sellable: 3180, locked: 540, transit: 1860, low: 1 },
   { name: "经销商仓（合计）", code: "12 家", sellable: 5420, locked: 1120, transit: 640, low: 1 },

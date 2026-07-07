@@ -86,6 +86,7 @@ export interface Order {
   order_no: string;
   customer_name: string;
   country: string;
+  province?: string; // 国内订单的省 / 市（如「江苏 · 苏州」），海外订单留空
   order_type: OrderType;
   order_channel: OrderChannel;
   customer_source: CustomerSource;

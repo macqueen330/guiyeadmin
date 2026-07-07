@@ -8,9 +8,8 @@ import {
   PERMISSION_MODULES,
   ROLE_TEMPLATES,
   grantedActions,
-  DATA_SCOPE_LABEL,
 } from "@/lib/rbac";
-import type { Admin, AdminGrant, AdminLevel, DataScope } from "@/lib/types";
+import type { Admin, AdminGrant } from "@/lib/types";
 
 // The subset of an admin needed to evaluate permissions. Works for both the full
 // Admin row (server) and the trimmed viewer passed to the client.
@@ -86,51 +85,4 @@ export function canSeeSensitive(actor: PermActor, moduleKey: string): boolean {
   if (!mod) return false;
   const granted = grantedActions(mod, effectiveGrants(actor)[moduleKey]);
   return mod.actions.some((a) => a.sensitive && granted.has(a.name));
-}
-
-// ---- 数据范围 ----
-
-export interface ScopeSpec {
-  scope: DataScope;
-  values: string[];
-}
-
-export function scopeOf(admin: Admin): ScopeSpec {
-  if (admin.level === "L1") return { scope: "all", values: [] };
-  return { scope: admin.scope, values: admin.scope_values ?? [] };
-}
-
-export function scopeLabelFor(scope: DataScope, values: string[]): string {
-  const base = DATA_SCOPE_LABEL[scope] ?? "全部数据";
-  if (scope === "all" || values.length === 0) return base;
-  return `${base}（${values.join(" / ")}）`;
-}
-
-// ---- 管理员管理授权 ----
-// Who may create/edit/disable whom. Returns an error string or null (allowed).
-//  * 三级管理员：完全不可管理任何账号。
-//  * 二级管理员：只能管理三级管理员。
-//  * 一级管理员：可管理所有账号。
-export function manageError(
-  actor: Pick<Admin, "level">,
-  targetLevel: AdminLevel,
-): string | null {
-  if (!canManageAdmins(actor)) return "无管理员管理权限";
-  if (actor.level === "L2" && targetLevel !== "L3") {
-    return "二级管理员只能创建 / 管理三级管理员";
-  }
-  return null;
-}
-
-// 创建某等级账号是否允许（一级账号只能由一级创建）。
-export function createLevelError(
-  actor: Pick<Admin, "level">,
-  targetLevel: AdminLevel,
-): string | null {
-  const base = manageError(actor, targetLevel);
-  if (base) return base;
-  if (targetLevel === "L1" && actor.level !== "L1") {
-    return "一级管理员只能由现有一级管理员创建";
-  }
-  return null;
 }
