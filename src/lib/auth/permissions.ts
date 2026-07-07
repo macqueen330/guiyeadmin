@@ -24,7 +24,6 @@ export const NAV_TO_MODULE: Record<string, string> = {
   inventory: "inventory",
   logistics: "logistics",
   crm: "crm",
-  channel: "channel",
   brand: "brand",
   finance: "finance",
   payments: "finance",

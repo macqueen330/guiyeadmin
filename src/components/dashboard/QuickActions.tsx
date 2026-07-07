@@ -4,7 +4,6 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 const ACTIONS: { label: string; icon: IconName; href: string; color: string; bg: string }[] = [
   { label: "创建订单", icon: "bag", href: "/orders", color: "#c2703d", bg: "#fff5ec" },
   { label: "添加客户", icon: "userPlus", href: "/crm", color: "var(--accent)", bg: "var(--accent-soft)" },
-  { label: "新建报价", icon: "ticket", href: "/channel?view=quote", color: "#b45309", bg: "#fff7ec" },
   { label: "商品入库", icon: "box", href: "/inventory?view=moves", color: "#2b6cb0", bg: "#eef4ff" },
   { label: "上传素材", icon: "upload", href: "/brand?view=media", color: "#8a6fb0", bg: "#f4f0fa" },
   { label: "导出报表", icon: "download", href: "/analytics", color: "#16894f", bg: "#e9f5ef" },

@@ -113,23 +113,6 @@ export const NAV_GROUPS: NavGroup[] = [
           { key: "records", label: "消费记录", view: "records" },
         ],
       },
-      {
-        key: "channel",
-        label: "渠道管理",
-        href: "/channel",
-        icon: "share",
-        badge: { text: "5", tone: "red" },
-        title: "渠道管理",
-        subtitle: "合作客户、跟进、报价与合同（通用 CRM）",
-        children: [
-          { key: "clients", label: "渠道客户", view: "clients", default: true },
-          { key: "apply", label: "合作申请", view: "apply" },
-          { key: "followup", label: "跟进记录", view: "followup" },
-          { key: "quote", label: "报价管理", view: "quote" },
-          { key: "sample", label: "样品寄送", view: "sample" },
-          { key: "contract", label: "合同资料", view: "contract" },
-        ],
-      },
     ],
   },
   {

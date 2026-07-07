@@ -16,7 +16,7 @@ export default async function CrmPage({
 
   const [customers, orders] = await Promise.all([getCustomers(), getOrders()]);
 
-  // 客户中心 manages consumers; B2B partners live in 渠道管理.
+  // 客户中心只管 C 端消费者（type === individual）。
   const consumers = customers.filter((c) => c.type === "individual");
   const memberCount = consumers.filter((c) => c.level !== "新客").length;
   const newCount = consumers.filter((c) => c.level === "新客").length;

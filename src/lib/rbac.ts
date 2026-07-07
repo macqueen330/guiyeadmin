@@ -86,7 +86,6 @@ export const PERMISSION_MODULES: PermModule[] = [
   { key: "orders", name: "订单中心", icon: "bag", actions: [a("查看订单"), a("新建订单"), a("修改订单"), a("审核订单"), a("取消订单"), a("导出订单"), a("处理退款"), a("修改订单金额", true)] },
   { key: "inventory", name: "商品与库存", icon: "box", actions: [a("查看商品"), a("新建商品"), a("修改商品"), a("修改价格", true), a("调整库存", true), a("商品上下架"), a("查看成本", true)] },
   { key: "crm", name: "客户中心", icon: "users", actions: [a("查看客户"), a("新建客户"), a("修改客户"), a("导出客户", true), a("查看手机号", true), a("修改客户归属"), a("删除客户", true)] },
-  { key: "channel", name: "渠道管理", icon: "share", actions: [a("查看渠道客户"), a("新建渠道客户"), a("创建报价"), a("查看合同"), a("上传合同"), a("修改合作状态")] },
   { key: "logistics", name: "仓储物流", icon: "truck", actions: [a("查看发货订单"), a("分配仓库"), a("打印面单"), a("填写物流"), a("确认出库"), a("处理物流异常")] },
   { key: "brand", name: "品牌内容", icon: "file", actions: [a("查看素材"), a("上传素材"), a("编辑内容"), a("提交审核"), a("发布内容"), a("删除素材", true)] },
   { key: "finance", name: "财务结算", icon: "dollar", actions: [a("查看支付流水", true), a("查看订单实收"), a("确认收款"), a("审核退款"), a("导出财务数据", true), a("查看成本与利润", true)] },
