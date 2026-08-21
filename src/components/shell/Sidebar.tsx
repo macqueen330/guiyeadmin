@@ -11,6 +11,7 @@ import {
   type NavItem,
 } from "@/lib/nav";
 import { Icon } from "@/components/ui/Icon";
+import { BrandMark } from "@/components/ui/Brand";
 import { useViewer } from "./AdminProvider";
 import { signOutAction } from "@/lib/auth/actions";
 import { ADMIN_LEVEL } from "@/lib/tokens";
@@ -222,23 +223,7 @@ export function Sidebar() {
     >
       {/* Brand */}
       <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "6px 10px 16px" }}>
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "linear-gradient(140deg,#2a9c74,#c2703d)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "0 4px 14px rgba(31,122,92,.35)",
-            flex: "none",
-          }}
-        >
-          <span style={{ color: "#fff", fontWeight: 800, fontSize: 15, letterSpacing: "-.5px" }}>
-            瑰
-          </span>
-        </div>
+        <BrandMark size={36} radius={10} shadow="0 4px 14px rgba(0,0,0,.35)" />
         <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.15 }}>
           <span style={{ color: "#fff", fontWeight: 700, fontSize: 15, letterSpacing: ".5px" }}>
             GUIYE 瑰野

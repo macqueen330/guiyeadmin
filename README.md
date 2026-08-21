@@ -165,11 +165,12 @@ src/
   app/
     layout.tsx              # 根布局（Manrope 字体 + AppShell）
     page.tsx                # 首页概览
+    favicon.ico / icon.png / apple-icon.png   # 站点图标（瑰野印章，Next 文件约定自动注入 <link>）
     orders/ crm/ ...        # 各业务模块（page.tsx 取数 + *View.tsx 客户端交互）
   components/
     shell/                  # Sidebar / Header / AppShell
     dashboard/              # 首页各区块 + 交互式 TrendChart
-    ui/                     # Card / Tag / Button / Icon / DataTable / FilterableTable / StatStrip
+    ui/                     # Card / Tag / Button / Icon / DataTable / FilterableTable / StatStrip / Brand
   lib/
     types.ts                # 领域模型类型
     tokens.ts               # 状态/来源等配色与格式化
@@ -178,6 +179,10 @@ src/
     supabase/               # 浏览器/服务端客户端 + 配置探测
     data/queries.ts         # 数据访问层（Supabase + 示例数据回退）
     mock/data.ts            # 内置示例数据（= seed.sql 来源）
+public/
+  brand/                    # 品牌素材（取自官网仓库 macqueen330/guiye）
+    guiye-logo.png          # 完整字标：瑰野 · GUIYE-JIU ROSE FIELD（透明底，浅色背景用）
+    guiye-mark.png          # 「瑰」印章图标（宣纸米色底，深色侧边栏用）
 supabase/
   migrations/0001_init.sql  # 表结构 + RLS
   seed.sql                  # 示例数据（由 npm run gen:seed 生成）
