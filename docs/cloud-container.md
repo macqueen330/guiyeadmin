@@ -26,7 +26,8 @@
 ```
 
 - **GitHub**：容器内 GitHub 走独立代理，`GH_TOKEN` 读出来是占位符 `proxy-injected`，
-  真实凭据在容器外替换。`git push`、建 PR 开箱即用，**不需要**你自备 PAT。
+  真实凭据在容器外替换。`git push` 开箱即用，**不需要**你自备 PAT。
+  但代理对「脚本自己调 REST API」另有限制，见下方 [GitHub 到底能干什么](#github-到底能干什么)。
 - **Vercel**：在 Vercel 项目里开启 Git 集成（Settings → Git），推分支即预览部署，
   合并 `main` 即生产部署。容器不需要 `VERCEL_TOKEN`。
 - **Supabase**：`SUPABASE_SERVICE_ROLE_KEY` 填在 Vercel 的
@@ -104,6 +105,32 @@ SUPABASE_ACCESS_TOKEN=<用完即吊销>
 贴 [`scripts/cloud-setup.sh`](../scripts/cloud-setup.sh) 的内容。它装依赖、装两个 CLI，
 并在启动日志里打印三个域名的可达性——网络策略没配对时一眼能看出来，
 不用等到每条命令都撞 403。
+
+---
+
+## GitHub 到底能干什么
+
+GitHub 不走上面那份域名白名单，它有自己的代理。但「能用」分三层，实测结果：
+
+| 路径 | 结果 | 说明 |
+| --- | --- | --- |
+| `git clone` / `fetch` / `push` | ✅ | 本项目两次提交都是这么推上去的 |
+| Claude 自带的 GitHub 工具 | ✅ | 读 issue / PR、列分支、发评论都正常 |
+| `curl $GH_TOKEN api.github.com/user` | ✅ | 代理会把占位符换成真凭据，返回真实用户名 |
+| `curl $GH_TOKEN api.github.com/repos/{owner}/{repo}` | ❌ 403 | `GitHub access is not enabled for this session. An org admin must connect the Claude GitHub App for this organization.` |
+| `curl $GH_TOKEN api.github.com/user/repos` | ❌ 403 | `sessions are bound to their configured repositories` |
+| GraphQL | ❌ 403 | 只服务 PR review 相关的固定几个操作，Projects v2 之类够不到 |
+| 未挂载的仓库 | ❌ 403 | 要先把仓库挂进会话 |
+
+也就是说：**推代码没问题，Claude 自己调 API 没问题，但你写的脚本直接打 REST 仓库接口会被拒。**
+用 `access: "push"` 重新挂载也不解决——这是账号层面没连 GitHub App，不是挂载方式的问题。
+
+脚本确实需要调 GitHub API 时，二选一：
+
+1. 装并授权 [Claude GitHub App](https://github.com/apps/claude)（顺带也是 PR 自动修复的前提）
+2. 自己配一个真的 PAT 到 `GITHUB_TOKEN` —— 注意它和其他令牌一样，在环境变量框里是明文可读的
+
+CI/CD 一般用不上：推分支触发 Vercel 构建这条链路只需要 `git push`，那是通的。
 
 ---
 
