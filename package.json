@@ -9,7 +9,11 @@
     "lint": "eslint",
     "gen:seed": "node --experimental-strip-types scripts/gen-seed.mts > supabase/seed.sql",
     "db:check": "node --experimental-strip-types --env-file=.env.local scripts/db-check.mts",
-    "admin:create": "node --experimental-strip-types --env-file=.env.local scripts/create-admin.mts"
+    "admin:create": "node --experimental-strip-types --env-file=.env.local scripts/create-admin.mts",
+    "env:check": "node --experimental-strip-types scripts/check-env.mts",
+    "env:check:local": "node --experimental-strip-types --env-file=.env.local scripts/check-env.mts",
+    "db:push": "node --experimental-strip-types scripts/db-push.mts",
+    "db:push:local": "node --experimental-strip-types --env-file=.env.local scripts/db-push.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
