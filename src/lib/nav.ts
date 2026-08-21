@@ -15,7 +15,14 @@ export interface NavItem {
   label: string;
   href: string;
   icon: IconName;
-  badge?: { text: string; tone: "accent" | "red" };
+  /**
+   * 徽标的**数据来源键**，不是数字本身。
+   * 原来这里写死着 "128" 和 "3"，与首页、业务流程条上的同名指标各说各话。
+   * 现在计数由 src/lib/data/metrics.ts getNavBadgeCounts() 统一算出，
+   * 在 (app)/layout.tsx 读取后传给 Sidebar；为 0 时不显示徽标。
+   */
+  badgeKey?: "orders" | "logistics";
+  badgeTone?: "accent" | "red";
   title: string;
   subtitle: string;
   children?: SubNavItem[];
@@ -52,7 +59,8 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "订单中心",
         href: "/orders",
         icon: "bag",
-        badge: { text: "128", tone: "accent" },
+        badgeKey: "orders",
+        badgeTone: "accent",
         title: "订单中心",
         subtitle: "零售、渠道、企业采购与售后的全量订单",
         children: [
@@ -84,7 +92,8 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "仓储物流",
         href: "/logistics",
         icon: "truck",
-        badge: { text: "3", tone: "red" },
+        badgeKey: "logistics",
+        badgeTone: "red",
         title: "仓储物流",
         subtitle: "待发货、物流跟踪、仓库与异常包裹",
         children: [
@@ -197,9 +206,10 @@ export const NAV_GROUPS: NavGroup[] = [
         children: [
           { key: "security", label: "安全策略", view: "security", default: true },
           { key: "notify", label: "消息通知", view: "notify" },
+          { key: "approval", label: "审批规则", view: "approval" },
+          { key: "rules", label: "业务规则", view: "rules" },
+          { key: "dict", label: "业务字典", view: "dict" },
           { key: "logs", label: "操作日志", view: "logs" },
-          { key: "product", label: "商品设置", view: "product" },
-          { key: "order", label: "订单规则", view: "order" },
         ],
       },
     ],

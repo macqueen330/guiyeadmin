@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { ADMIN_STATUS } from "@/lib/tokens";
+import { initial } from "@/lib/tokens";
 import { useViewer } from "./AdminProvider";
+import { useDict } from "./DictProvider";
 import { signOutAction } from "@/lib/auth/actions";
 
 function Avatar({ name, size = 30 }: { name: string; size?: number }) {
@@ -24,12 +25,24 @@ function Avatar({ name, size = 30 }: { name: string; size?: number }) {
         flex: "none",
       }}
     >
-      {name[0]}
+      {initial(name)}
     </span>
   );
 }
 
-function MenuLink({ href, icon, label, onClick }: { href: string; icon: IconName; label: string; onClick: () => void }) {
+function MenuLink({
+  href,
+  icon,
+  label,
+  onClick,
+  count,
+}: {
+  href: string;
+  icon: IconName;
+  label: string;
+  onClick: () => void;
+  count?: number;
+}) {
   const [hover, setHover] = useState(false);
   return (
     <Link
@@ -53,12 +66,28 @@ function MenuLink({ href, icon, label, onClick }: { href: string; icon: IconName
     >
       <Icon name={icon} size={16} color="#6b716d" />
       {label}
+      {count ? (
+        <span
+          style={{
+            marginLeft: "auto",
+            fontSize: 10.5,
+            fontWeight: 700,
+            color: "#b45309",
+            background: "#fff7ec",
+            padding: "1px 8px",
+            borderRadius: 20,
+          }}
+        >
+          {count}
+        </span>
+      ) : null}
     </Link>
   );
 }
 
-export function AdminMenu() {
+export function AdminMenu({ pendingApprovals = 0 }: { pendingApprovals?: number }) {
   const viewer = useViewer();
+  const dict = useDict();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const canApprove = viewer.level !== "L3"; // 操作员不负责审批
@@ -77,7 +106,7 @@ export function AdminMenu() {
     };
   }, [open]);
 
-  const statusTone = ADMIN_STATUS[viewer.status];
+  const statusTone = dict.tone("admin_status", viewer.status);
   const close = () => setOpen(false);
 
   return (
@@ -136,7 +165,6 @@ export function AdminMenu() {
               <span style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <span style={{ color: "var(--muted)" }}>账号状态：</span>
                 <span style={{ fontWeight: 700, color: statusTone.color }}>{statusTone.text}</span>
-                {viewer.isDemo && <span style={{ color: "var(--muted)" }}>· 演示</span>}
               </span>
             </div>
           </div>
@@ -146,7 +174,15 @@ export function AdminMenu() {
             <MenuLink href="/profile" icon="users" label="个人中心" onClick={close} />
             <MenuLink href="/profile?tab=security" icon="shield" label="账号安全" onClick={close} />
             <MenuLink href="/profile?tab=devices" icon="globe" label="登录设备" onClick={close} />
-            {canApprove && <MenuLink href="/settings?view=approval" icon="ticket" label="我的审批" onClick={close} />}
+            {canApprove && (
+              <MenuLink
+                href="/settings?view=approval"
+                icon="ticket"
+                label="我的审批"
+                onClick={close}
+                count={pendingApprovals}
+              />
+            )}
             <MenuLink href="/profile?tab=logs" icon="file" label="操作记录" onClick={close} />
           </div>
 

@@ -16,8 +16,18 @@ import {
   isAuthConfigured,
 } from "@/lib/supabase/config";
 
-// Paths that never require a session.
-const PUBLIC_PREFIXES = ["/login", "/auth"];
+// Paths that never require an admin session.
+//
+//  * /api/pay/*        支付平台异步通知 —— 按签名验证，不可能带管理员 Cookie
+//  * /api/logistics/*  承运商 Webhook —— 同上
+//  * /api/analytics/*  官网埋点采集 —— 公开写入端点（仅接受埋点，不返回数据）
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/auth",
+  "/api/pay",
+  "/api/logistics",
+  "/api/analytics",
+];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
@@ -26,9 +36,15 @@ function isPublic(pathname: string): boolean {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Demo mode (no service role → no real auth): let everything through so the
-  // dashboard still renders. Matches getCurrentAdmin()/isDemoMode().
-  if (!isAuthConfigured) return NextResponse.next();
+  // 未配置 Supabase 时不再放行整站（旧行为等于开放一个无鉴权入口）。
+  // 除登录页与 webhook 外一律弹回 /login，由登录页提示部署者补环境变量。
+  if (!isAuthConfigured) {
+    if (isPublic(pathname)) return NextResponse.next();
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("reason", "unconfigured");
+    return NextResponse.redirect(url);
+  }
 
   let response = NextResponse.next({ request });
 

@@ -5,8 +5,26 @@ const COLORS = ["var(--accent)", "#2a9c74", "#4a8fb8", "#e0a44a", "#c2703d", "#8
 
 // Conversion funnel: bar width ∝ count, with step-to-step drop-off %. Shared by
 // the site-wide funnel and the per-product drill-down.
-export function Funnel({ steps }: { steps: FunnelStep[] }) {
-  const max = steps.length > 0 ? steps[0].count : 1;
+//
+// 健康度色阶（good / warn）来自 app_settings 的 analytics.funnel_good /
+// funnel_warn，由调用方传入 —— 原来是组件里写死的 50 / 25。
+export function Funnel({
+  steps,
+  good = 50,
+  warn = 25,
+}: {
+  steps: FunnelStep[];
+  good?: number;
+  warn?: number;
+}) {
+  if (steps.length === 0) {
+    return (
+      <div style={{ padding: "26px 0", fontSize: 12.5, color: "var(--muted)", textAlign: "center" }}>
+        暂无漏斗数据
+      </div>
+    );
+  }
+  const max = steps[0].count || 1;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
       {steps.map((s, i) => {
@@ -18,7 +36,13 @@ export function Funnel({ steps }: { steps: FunnelStep[] }) {
             {ratio !== null && (
               <div style={{ display: "flex", alignItems: "center", gap: 6, paddingLeft: 2 }}>
                 <span style={{ fontSize: 10, color: "#c9cdc6" }}>↓</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: ratio >= 50 ? "#16894f" : ratio >= 25 ? "#b45309" : "#c0392b" }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: ratio >= good ? "#16894f" : ratio >= warn ? "#b45309" : "#c0392b",
+                  }}
+                >
                   {ratio.toFixed(1)}%
                 </span>
               </div>

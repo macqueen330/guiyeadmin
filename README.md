@@ -1,33 +1,48 @@
 # GUIYE 瑰野 · 运营控制台
 
-跨境订单 · 渠道 · 商品与库存 · 客户 · 仓储物流 · 财务结算 · 品牌内容 · 数据分析的一体化后台管理系统。
-基于 [Claude Design](https://claude.ai/design) 导出的设计稿（`Guiye数据总览.dc.html`）实现，
-像素级还原视觉框架，并按「交易管理 / 客户经营 / 品牌运营 / 经营管理」重构信息架构，每个一级模块下设二级菜单。
+跨境订单 · 商品与库存 · 客户经营 · 仓储物流 · 财务结算 · 品牌内容 · 数据分析的一体化后台。
 
-- **技术栈**：Next.js 16（App Router）· React 19 · TypeScript · Supabase
+- **技术栈**：Next.js 16（App Router，`proxy.ts`）· React 19 · TypeScript · Supabase Postgres
 - **部署**：Vercel（目标域名 `guiye-admin.com`）
-- **数据**：Supabase Postgres；未配置时自动回退到内置示例数据，保证随时可构建、可预览
+- **数据**：全部来自 Supabase。**没有示例数据回退** —— 数据库里没有的东西，界面显示空态，
+  而不是造一份看起来很真的假数据。
+
+---
+
+## 一条重要约定：不造假数据
+
+这套后台此前有大量「看起来是真的，其实是写死的」内容：伪随机趋势图、编造的审计日志、
+一律打绿勾的安全策略、未配置时自动登录的演示超管。这些已经全部移除，取而代之的规则是：
+
+| 情况 | 界面表现 |
+| --- | --- |
+| 表里没有数据 | 空态文案，说明数据从哪来 |
+| 能力尚未实现 | 明确标注「规划中」，开关不生效也会说明 |
+| 支付 / 物流未配置 | 显示缺哪个环境变量、缺哪一步，不显示「已开通」 |
+| 系统未配置数据库 | 登录页显示「系统尚未配置」，**没有任何降级入口** |
+
+写代码时请沿用这条约定。
 
 ---
 
 ## 功能模块
 
-二级菜单通过 `?view=` 切换：侧边栏深链与页内 SubTabs 同步高亮，已建模的子视图为真实筛选，
-其余子模块以「结构预留」占位卡呈现（保留信息架构、暂不接入数据）。
+侧边栏二级菜单通过 `?view=` 切换，页内 SubTabs 与之同步。
 
-| 路由 | 模块（分组） | 二级菜单 | 说明 |
-| --- | --- | --- | --- |
-| `/` | 首页概览 | — | 任务入口：今日 KPI、今日待办（明确动作）、快捷入口、业务主流程、销售趋势、最近操作/订单 |
-| `/orders` · `/orders/[no]` | 订单中心（交易管理） | 全部 / 零售 / 渠道 / 企业采购 / 售后退款 / 发货异常 | 按订单类型分流；「发货异常」联动物流异常运单；订单详情含明细与状态流转 |
-| `/inventory` | 商品与库存（交易管理） | 商品管理 / 价格管理 / 库存管理 / 入库出库 / 库存预警 | 价格管理支持官网零售/会员/经销/团购/企业/海外建议多档价格；多仓库存分布 |
-| `/logistics` | 仓储物流（交易管理） | 待发货 / 物流跟踪 / 仓库管理 / 异常包裹 | 履约视角的发货与物流追踪、发货仓库分布 |
-| `/crm` | 客户中心（客户经营） | 消费者 / 会员 / 客户标签 / 消费记录 | 管理 C 端消费者 |
-| `/brand` | 品牌内容（品牌运营） | 官网内容 / 图片视频 / 宣传资料 / 渠道资料 / 多语言内容 | 官网内容可直接编辑 Banner/产品介绍/品牌故事（中英文），不只是上传文件 |
-| `/finance` | 财务结算（经营管理） | 收款 / 退款 / 发票 / 对账 / 应收款 | 从原「物流财务」拆出；回款、应收逾期、退款与对账 |
-| `/analytics` | 数据分析（经营管理） | 经营总览 / 消费者分析 / 渠道分析 / 商品分析 | KPI 用「回款」替代毛利率；渠道占比拆为「销售渠道 + 客户来源」两套口径；地区可切换国内省市/海外国家；产品销售排行替代重复的渠道排行 |
-| `/settings` | 系统设置 | 安全策略 / 消息通知 / 操作日志 / 商品设置 / 订单规则 | 账号安全、通知开关、操作审计与业务规则（单人使用，不含多级管理员）|
-
-所有列表均支持客户端实时搜索与下拉筛选；侧边栏二级菜单可展开/收起，导航高亮、页面标题随路由切换。
+| 路由 | 模块 | 二级菜单 |
+| --- | --- | --- |
+| `/` | 首页概览 | — （今日 KPI、待办、业务主流程、趋势、最近操作） |
+| `/orders` · `/orders/[no]` | 订单中心 | 全部 / 零售 / 渠道 / 企业采购 / 售后退款 / 发货异常 |
+| `/inventory` | 商品与库存 | 商品管理 / 价格管理 / 库存管理 / 入库出库 / 库存预警 |
+| `/logistics` | 仓储物流 | 待发货 / 物流跟踪 / 仓库管理 / 异常包裹 |
+| `/crm` | 客户中心 | 消费者 / 会员 / 客户标签 / 消费记录 |
+| `/payments` | 支付管理 | 支付流水 / 支付异常 / 退款管理 / 渠道对账 / 支付配置 |
+| `/finance` | 财务结算 | 收款 / 退款 / 发票 / 对账 / 应收款 |
+| `/analytics` | 数据分析 | 经营总览 / 官网数据 / 商品分析 / 消费者分析 / 渠道分析 |
+| `/brand` | 品牌内容 | 官网内容 / 图片视频 / 宣传资料 / 渠道资料 / 多语言内容 |
+| `/settings` | 系统设置 | 安全策略 / 消息通知 / 审批规则 / 业务规则 / 业务字典 / 操作日志 |
+| `/search` | 全局搜索 | 顶栏搜索框跳转，覆盖订单号、客户、SKU、运单号 |
+| `/profile` | 个人中心 | 基本资料 / 账号与权限 / 安全设置 / 登录设备 / 个人日志 |
 
 ---
 
@@ -35,126 +50,142 @@
 
 ```bash
 npm install
-cp .env.example .env.local   # 可留空先用示例数据
-npm run dev                  # http://localhost:3000
+cp .env.example .env.local     # 三项 Supabase 变量必填，否则无法登录
+npm run dev                    # http://localhost:3000
+
+npm run typecheck              # tsc --noEmit
+npm run lint
+npm run build
+npm run db:check               # 校验表 / 函数 / 时间列类型，并确认 anon 已被 RLS 挡住
 ```
 
-未填写 Supabase 变量时，应用使用 `src/lib/mock/data.ts` 中的示例数据（与设计稿数值一致）。
+---
+
+## 初始化数据库
+
+在 Supabase → **SQL Editor** 里**按顺序**执行：
+
+| 顺序 | 文件 | 内容 |
+| --- | --- | --- |
+| 1 | `supabase/migrations/0001_init.sql` | 基础表 + 视图 |
+| 2 | `supabase/migrations/0002_orders_payments_admin.sql` | 订单履约 / 支付 / 退款 / 管理员 |
+| 3 | `supabase/migrations/0003_admin_auth_rbac.sql` | 登录鉴权 + 审计日志 |
+| 4 | `supabase/migrations/0004_order_province_suzhou.sql` | 订单省市字段 |
+| 5 | `supabase/migrations/0005_cleanup_and_time_types.sql` | **删除历史写死的示例账号 / 订单 / 客户**；文本时间列改为 `timestamptz`；补齐约 60 个业务字段 |
+| 6 | `supabase/migrations/0006_platform_tables.sql` | 配置、字典、价格档位、承运商、支付渠道、审批、积分、官网埋点等约 30 张表 |
+| 7 | `supabase/migrations/0007_functions_triggers.sql` | 单号序列、订单状态派生、客户统计、积分、库存流水、官网日汇总、`order_finance_view` |
+| 8 | `supabase/migrations/0008_rls_lockdown.sql` | **收紧 RLS**：anon / authenticated 对所有业务表 0 条策略 |
+| 9 | `supabase/seed_reference.sql` | **必须执行**：字典、系统配置、价格档位、会员等级、支付渠道、承运商、审批规则、角色等基础配置 |
+| 10 | `supabase/seed_samples.sql` | **可选**：几条演示用的商品 / 客户 / 订单 / 支付 / 运单 + 30 天官网埋点，全部以 `sample-` 开头 |
+
+- 样例数据随时可以清掉：执行 `supabase/clean_samples.sql`（只删 `sample-%`，真实数据不受影响）。
+- 需要彻底重来：`supabase/reset.sql`（**会删掉所有表**）。
+
+> 第 9 步不是可选的。字典、审批阈值、支付渠道、承运商这些「配置类」数据以前写死在
+> TypeScript 里，现在都在数据库中，不导入界面会大面积空白。
 
 ---
 
-## 连接 Supabase（真实数据）
+## 环境变量
 
-1. 在 [supabase.com](https://supabase.com) 新建项目。
-2. 打开 **SQL Editor**，依次执行：
-   - `supabase/migrations/0001_init.sql`（基础表 + 视图 + 公开只读 RLS）
-   - `supabase/migrations/0002_orders_payments_admin.sql`（订单支付/履约/结算字段 + 支付流水 / 退款 / 管理员表）
-   - `supabase/migrations/0003_admin_auth_rbac.sql`（管理员登录鉴权 + 审计日志 + RLS 收紧）
-   - `supabase/migrations/0004_order_province_suzhou.sql`（订单国内省市字段 + 中国仓库改为苏州仓）
-   - `supabase/seed.sql`（导入示例数据，可选）
-3. 在 **Project Settings → API** 复制 `Project URL`、`anon public` key 与 `service_role` key，填入环境变量：
-
-   ```bash
-   NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
-   SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...   # 仅服务端，切勿加 NEXT_PUBLIC_ 前缀
-   ```
-
-4. 重启 `npm run dev`。数据层（`src/lib/data/queries.ts`）会自动改用 Supabase，
-   查询失败时回退到示例数据。填入 `SUPABASE_SERVICE_ROLE_KEY` 后即启用**真实登录鉴权与管理员系统**
-   （详见下方「管理员系统」）；未填写时运行在只读**演示模式**（内置超级管理员身份，便于预览）。
-
-> 重新生成种子 SQL（修改示例数据后）：`npm run gen:seed`
-
-> **说明**：
-> - `admins` / `admin_audit_logs` 已通过 `0003` 收紧 RLS（anon/authenticated 一律拒绝），只有服务端 `service_role` 客户端在应用层鉴权后可读写。
-> - `payments` / `refunds` 仍为公开只读示例 RLS，接入真实数据前请再改成登录鉴权 + 数据范围策略。
-> - 「官网数据」（PV/UV、产品点击、漏斗）目前为示例数据，应由埋点 / 统计管道（自建或 GA / 百度统计 / 神策等）写入后再接管，`src/lib/mock/web.ts` 即替换点。
-
----
-
-## 登录鉴权（单人使用）
-
-本控制台为**单人（店主本人）使用**：一个超级管理员账号 + 全部权限，不设多级管理员 / 合伙人 / 分权。
-填入 `SUPABASE_SERVICE_ROLE_KEY` 后启用真实登录；未填写则为只读演示模式（内置超级管理员身份，便于预览）。
-基于 **Supabase Auth**（密码加密托管，系统不存明文）。
-
-### 1. 创建你的登录账号
+完整清单与说明见 `.env.example`。必填三项：
 
 ```bash
-npm run admin:create -- --email admin@guiye.com --password 'Guiye2026pass' --name 你的名字
-# 需要 .env.local 中的 NEXT_PUBLIC_SUPABASE_URL 与 SUPABASE_SERVICE_ROLE_KEY
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...     # 仅服务端，切勿加 NEXT_PUBLIC_ 前缀
 ```
 
-之后访问 `/login` 用该邮箱登录。
+缺任意一项：`/login` 显示「系统尚未配置」，所有后台路由被 `proxy.ts` 拦截。
+**不存在**「未配置就以超级管理员身份进入」这种降级路径。
 
-### 2. 鉴权与会话（`src/proxy.ts` + `src/lib/auth/`）
-
-- **`src/proxy.ts`**（Next.js 16 已将 `middleware` 更名为 `proxy`，Node 运行时）刷新 Supabase 会话，
-  未登录访问任何后台路由 → 统一 302 跳转 `/login?redirect=…`。
-- **`src/app/(app)/layout.tsx`** 服务端 `requireAdmin()` 是真正的门禁；仅 `active` 账号可进入。
-- **会话保持**：Supabase SSR Cookie，刷新后保持登录。
-- **退出登录 / 强制退出 / 30 分钟无操作自动退出**：`signOutAction` / `session_epoch` / `IdleLogout`。
-- 校验永远以服务端为准，前端 `Viewer` 仅用于展示。
-
-### 3. 个人中心与审计
-
-- **`/profile` 个人中心**：基本资料 / 账号与权限（只读，展示你拥有全部权限）/ 安全设置（改密码）/ 登录设备 / 个人日志。
-- **系统设置**：安全策略 / 消息通知 / 操作日志 / 商品设置 / 订单规则。
-- **审计**：`admin_audit_logs` 记录登录成功/失败/退出与关键操作（操作人、时间、IP、设备、前后值），RLS 无 delete 策略。
-
-### 4. 安全
-
-- 连续输错 **5 次锁定账号 30 分钟**（到期自动解锁）。
-- 改密码需校验旧密码；密码 ≥8 位且含字母 + 数字，由 Supabase Auth 加密存储。
-- 二次验证（2FA）字段已预留（`two_factor`），实际 TOTP / 新设备验证码为后续项。
-
-> **说明**：早期的多级管理员（等级 / 角色模板 / 员工管理 / 审批 / 数据范围）已按“单人使用”移除；
-> `admins` 表相关列保留但不再暴露对应界面。
+可选：支付（微信 / 支付宝 / 银联）、物流承运商、官网埋点上报的密钥，见 `.env.example`。
+密钥**从不入库** —— `payment_gateways.credential_env` 与 `carriers.api_credential_env`
+里存的是变量名，值只存在于运行环境。
 
 ---
 
-## 部署到 Vercel
+## 登录、权限与审计
 
-1. 将本仓库推送到 GitHub（见下方“推送代码”）。
-2. 在 [vercel.com](https://vercel.com) → **Add New → Project** 导入该 GitHub 仓库。
-   Vercel 会自动识别 Next.js，无需额外配置。
-3. 在 **Settings → Environment Variables** 添加：
-   `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`、
-   `SUPABASE_SERVICE_ROLE_KEY`（务必设为**非公开**的服务端变量，切勿加 `NEXT_PUBLIC_` 前缀）、
-   `NEXT_PUBLIC_SITE_URL=https://guiye-admin.com`
-4. **Deploy**。
-
-### 推送代码
+### 创建第一个管理员
 
 ```bash
-git remote add origin https://github.com/<你的账号>/guiye-admin.git
-git push -u origin feat/guiye-dashboard   # 或合并到 main 后推送
+npm run admin:create -- --email admin@guiye.com --name 你的名字 --level L1
+# 默认生成一个随机强密码并打印一次（只打印这一次）；也可以：
+#   --password-stdin   从标准输入读取密码
+#   --reactivate       重新启用一个已停用的账号
 ```
+
+脚本不会静默重置已存在账号的密码，也会把这次创建写进 `admin_audit_logs`。
+
+### 权限模型
+
+- **等级**：L1（超级管理员，拥有全部权限）/ L2 / L3。
+- **模块 × 动作授权**：`admins.grants`，或通过 `roles` 表按角色下发（角色改名不会丢权限）。
+- **数据范围**：`scope`（all / region / dept / warehouse / subordinate / self）。
+- 服务端是唯一的授权边界：页面用 `requireModule()`，Server Action 用 `assertCan()`；
+  侧边栏隐藏链接只是 UX。
+
+### 会话与安全
+
+- `src/proxy.ts`（Next.js 16 里 `middleware` 已更名为 `proxy`）刷新 Supabase 会话并拦截未登录访问。
+- `session_epoch` + httpOnly Cookie：一键强制下线其它设备，旧 Cookie 立即失效。
+- 登录会话记录在 `admin_sessions`（设备 / IP / 登录时间 / 注销时间），个人中心可见可撤销。
+- 锁定次数、锁定时长、空闲退出、会话时长、密码强度、脱敏等级、导出审批阈值
+  全部存在 `app_settings.security.*`，系统设置页可改，登录页 / 个人中心 / 安全策略页读的是同一份。
+- 安全策略页对每条策略标注真实状态（**已生效 / 已关闭 / 规划中**）。
+  短信验证码与 TOTP 尚未接入，界面明确写「规划中」，不打对勾。
+
+### 审计
+
+`admin_audit_logs` 记录登录成功 / 失败 / 退出与全部关键写操作（操作人、等级、时间、IP、设备、前后值）。
+没有记录就显示空态 —— 不会用示例日志填充。
 
 ---
 
-## 绑定域名 guiye-admin.com
+## 支付接入（预留接口，已实现验签）
 
-> ⚠️ 这一步需要在**你自己的 Vercel 账号**和**域名注册商后台**完成（我无法代你登录操作）。
-> 流程不超过 5 分钟：
+三个在线渠道的**回调验签与解密已经实现**，这是资金安全的关键；下单 / 退款接口需要真实商户
+资质才能联调，因此保留为「配置齐全才可用」，缺配置时抛错并在界面上说明缺什么。
 
-1. Vercel 项目 → **Settings → Domains** → 输入 `guiye-admin.com` → **Add**。
-   建议同时添加 `www.guiye-admin.com`（Vercel 默认会把 www 重定向到主域名）。
-2. Vercel 会显示需要配置的 DNS 记录。到你的**域名注册商**（购买 guiye-admin.com 的平台）
-   的 DNS 管理页，添加：
+| 渠道 | 回调地址 | 已实现 |
+| --- | --- | --- |
+| 微信支付 V3 | `/api/pay/wechat_pay/notify` | SHA256withRSA 验签 + `resource` 的 AES-256-GCM 解密 |
+| 支付宝 | `/api/pay/alipay/notify` | RSA2 排序验签 |
+| 银联 5.1.0 | `/api/pay/unionpay/notify` | SHA-256 摘要 + RSA 验签 |
+| 银行转账 / 线下收款 / 账期 | — | 人工登记，无需接口 |
 
-   | 类型 | 主机/名称 | 值 |
-   | --- | --- | --- |
-   | `A` | `@`（根域名） | `76.76.21.21` |
-   | `CNAME` | `www` | `cname.vercel-dns.com` |
+回调统一走 `storeWebhookEvent()` + `applyPaymentNotification()`：先落 `payment_webhook_events`
+做幂等，验签不通过直接拒绝，金额对不上标记 `pay_exception` 而不是照单入账。
 
-   > 以 Vercel 仪表盘实际显示的记录为准；部分注册商也可改用 Vercel 提供的
-   > Nameservers（`ns1.vercel-dns.com` / `ns2.vercel-dns.com`）整体托管。
-3. 保存后等待 DNS 生效（通常几分钟，最长 48 小时）。Vercel 验证通过后会自动签发
-   HTTPS 证书，`https://guiye-admin.com` 即可访问。
+渠道在 `/payments?view=config` 里配置，状态（未开通 / 已开通）与联调状态都是数据库里的真实值。
 
-完成后把 `NEXT_PUBLIC_SITE_URL` 设为 `https://guiye-admin.com` 并重新部署即可。
+## 物流接入（预留接口）
+
+`carriers.api_provider` 决定一家承运商怎么走：
+
+- `NULL` —— 人工录单（默认）。界面显示「人工录单」，不会假装能自动同步。
+- `http` —— 通用 REST 适配器，请求方式与字段映射写在 `carriers.api_config`（JSON 指针），
+  无需为每家承运商写代码。
+
+承运商推送走 `/api/logistics/{code}/webhook`，HMAC-SHA256 验签（`timingSafeEqual`），
+轨迹写入 `shipment_events` 并按 `externalId` 去重。
+
+---
+
+## 数据分析
+
+- **后台自身**的页面浏览由 [`@vercel/analytics`](https://vercel.com/docs/analytics/quickstart)
+  采集：`src/app/layout.tsx` 里挂了 `<Analytics />` 与 `<SpeedInsights />`，
+  部署到 Vercel 后在项目的 Analytics 面板查看，无需额外配置。
+- **官网（对外站点）**的流量走自建埋点：官网 POST 到 `/api/analytics/collect`
+  （单次最多 50 条，事件类型需在 `web_event_types` 白名单内），写入 `web_events`，
+  再由 `gy_rollup_web_day()` 汇总成 `web_analytics_daily` / `web_page_stats` /
+  `web_traffic_sources` / `web_device_stats` / `web_region_stats` / `web_product_stats`。
+  `/analytics?view=web` 读的就是这些汇总表。
+- 经营指标（KPI / 趋势 / 排行 / 漏斗 / 待办）统一在 `src/lib/data/metrics.ts` 计算，
+  所以同一个「待发货」在首页数字、侧边栏徽标、业务流程条上永远是同一个值。
+  日切按 `app_settings.analytics.tz_offset_hours`（默认 +8），不是服务器的 UTC。
 
 ---
 
@@ -162,32 +193,58 @@ git push -u origin feat/guiye-dashboard   # 或合并到 main 后推送
 
 ```
 src/
+  proxy.ts                    # 会话刷新 + 未登录拦截（Next.js 16 的 middleware）
   app/
-    layout.tsx              # 根布局（Manrope 字体 + AppShell）
-    page.tsx                # 首页概览
-    orders/ crm/ ...        # 各业务模块（page.tsx 取数 + *View.tsx 客户端交互）
+    layout.tsx                # 根布局 + Vercel Analytics / Speed Insights
+    login/                    # 登录页（未配置时显示「系统尚未配置」）
+    (app)/                    # 需要登录的后台：各模块 page.tsx 取数 + *View.tsx 交互 + actions.ts 写入
+    api/
+      pay/[provider]/notify/  # 微信 / 支付宝 / 银联回调
+      logistics/[carrier]/webhook/
+      analytics/collect/      # 官网埋点上报
   components/
-    shell/                  # Sidebar / Header / AppShell
-    dashboard/              # 首页各区块 + 交互式 TrendChart
-    ui/                     # Card / Tag / Button / Icon / DataTable / FilterableTable / StatStrip
+    shell/                    # AppShell / Sidebar / Header / DictProvider / IdleLogout
+    dashboard/                # 首页各区块
+    ui/                       # Card / Tag / Button / Icon / DataTable / FilterableTable / Form
   lib/
-    types.ts                # 领域模型类型
-    tokens.ts               # 状态/来源等配色与格式化
-    charts.ts               # 图表几何（移植自设计稿）
-    nav.ts                  # 导航与路由元信息
-    supabase/               # 浏览器/服务端客户端 + 配置探测
-    data/queries.ts         # 数据访问层（Supabase + 示例数据回退）
-    mock/data.ts            # 内置示例数据（= seed.sql 来源）
+    types.ts  tokens.ts  charts.ts  nav.ts  rbac.ts  dict.ts  settings.ts
+    auth/                     # context / store / permissions / actions / audit
+    data/                     # db(服务端唯一取数入口) queries metrics web settings dict approvals policy search
+    actions/                  # runAction 授权 + 审计 + 统一返回值
+    payments/                 # types wechat alipay unionpay manual registry apply
+    logistics/                # types manual httpCarrier registry
+    supabase/                 # 浏览器 / 服务端 / service-role 客户端
 supabase/
-  migrations/0001_init.sql  # 表结构 + RLS
-  seed.sql                  # 示例数据（由 npm run gen:seed 生成）
-design-reference/           # 原始 Claude Design 导出件（设计稿 + 对话记录）
+  migrations/0001…0008.sql
+  seed_reference.sql          # 必须执行：基础配置
+  seed_samples.sql            # 可选：sample- 前缀的演示数据
+  clean_samples.sql  reset.sql
+scripts/
+  create-admin.mts  db-check.mts
+design-reference/             # 原始 Claude Design 导出件
 ```
 
 ---
 
-## 下一步（建议）
+## 部署到 Vercel
 
-- 为创建/编辑按钮接入 Supabase 写入（Server Actions）+ 写策略 / 登录鉴权
-- 接入真实业务字段与第三方物流、支付、开票系统
-- 报表导出（当前“导出”按钮为占位）
+1. 推送到 GitHub 后在 [vercel.com](https://vercel.com) → **Add New → Project** 导入仓库。
+2. **Settings → Environment Variables** 填入 `.env.example` 里的必填项
+   （`SUPABASE_SERVICE_ROLE_KEY` 务必设为非公开的服务端变量）。
+3. Deploy。Web Analytics 需要在 Vercel 项目的 **Analytics** 标签页点一次启用。
+
+### 绑定域名 guiye-admin.com
+
+Vercel 项目 → **Settings → Domains** → 添加 `guiye-admin.com`（建议同时加 `www`），
+按仪表盘提示在域名注册商处配置 DNS（通常是根域 `A` 记录与 `www` 的 `CNAME`），
+等待验证后 Vercel 自动签发 HTTPS 证书。最后把 `NEXT_PUBLIC_SITE_URL` 设为
+`https://guiye-admin.com` 并重新部署。
+
+---
+
+## 后续待办
+
+- 短信验证码 / TOTP 二次验证（安全策略页现标注「规划中」）
+- 微信 / 支付宝 / 银联的下单与退款联调（验签已就绪，缺商户资质）
+- 承运商 API 实际对接（通用 `http` 适配器已就绪，填 `carriers.api_config` 即可）
+- 品牌内容模块仍在使用旧实现，尚未纳入本轮改造

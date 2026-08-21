@@ -1,9 +1,14 @@
-import { buildDonut } from "@/lib/charts";
+import { buildDonut, slicePercents } from "@/lib/charts";
+import { fmtNumber } from "@/lib/tokens";
 import type { ChannelSlice } from "@/lib/types";
 
-// A single labelled donut. Used twice on the dashboard/analytics to keep the
-// two口径 (销售渠道 vs 客户来源) visually separate — they must never be merged
-// into one chart, since they answer different questions.
+// A single labelled donut. Used on the dashboard/analytics to keep the two 口径
+// (销售渠道 vs 客户来源) visually separate — they must never be merged into one
+// chart, since they answer different questions.
+//
+// 注意：slices[].val 现在是**原始计数**，百分比在这里按实际合计算出。
+// 原来 buildDonut 直接除以字面量 100，只有在 mock 数据刚好凑成 100 时才对，
+// 真实分组查询几乎不可能加起来正好是 100。
 export function RatioDonut({
   title,
   subtitle,
@@ -18,6 +23,9 @@ export function RatioDonut({
   slices: ChannelSlice[];
 }) {
   const segs = buildDonut(slices);
+  const pcts = slicePercents(slices);
+  const total = slices.reduce((sum, c) => sum + Math.max(0, c.val), 0);
+
   return (
     <div
       style={{
@@ -59,13 +67,24 @@ export function RatioDonut({
         </svg>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 6 }}>
-        {slices.map((c) => (
-          <div key={c.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 3, background: c.color, flex: "none" }} />
-            <span style={{ fontSize: 12.5, color: "#3a403c", fontWeight: 500 }}>{c.label}</span>
-            <span style={{ marginLeft: "auto", fontSize: 12.5, fontWeight: 700 }}>{c.val}%</span>
-          </div>
-        ))}
+        {total === 0 ? (
+          <span style={{ fontSize: 12.5, color: "var(--muted)", textAlign: "center", padding: "6px 0" }}>
+            暂无数据
+          </span>
+        ) : (
+          slices.map((c, i) => (
+            <div key={c.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 3, background: c.color, flex: "none" }} />
+              <span style={{ fontSize: 12.5, color: "#3a403c", fontWeight: 500 }}>{c.label}</span>
+              <span style={{ marginLeft: "auto", fontSize: 12.5, fontWeight: 700 }}>
+                {pcts[i].toFixed(1)}%
+              </span>
+              <span style={{ fontSize: 11, color: "var(--muted)", width: 52, textAlign: "right" }}>
+                {fmtNumber(c.val)}
+              </span>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

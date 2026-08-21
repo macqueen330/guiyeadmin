@@ -36,6 +36,7 @@ export function FilterableTable<T extends { id: string }>({
   filters = [],
   rightAction,
   empty,
+  initialQuery,
 }: {
   rows: T[];
   columns: Column<T>[];
@@ -44,8 +45,10 @@ export function FilterableTable<T extends { id: string }>({
   filters?: FilterDef<T>[];
   rightAction?: ReactNode;
   empty?: string;
+  /** 从 /search 或顶栏跳转过来时的初始关键词（?q=） */
+  initialQuery?: string;
 }) {
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialQuery ?? "");
   const [active, setActive] = useState<Record<string, string>>({});
 
   const filtered = useMemo(() => {

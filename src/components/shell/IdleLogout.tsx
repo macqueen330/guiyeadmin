@@ -3,8 +3,9 @@
 import { useEffect, useRef } from "react";
 import { signOutIdleAction } from "@/lib/auth/actions";
 
-// Auto sign-out after `minutes` of no user interaction (30 分钟无操作自动退出).
-// Disabled in demo mode (no real session to end).
+// Auto sign-out after `minutes` of no user interaction.
+// 超时时长由 app_settings 的 security.idle_logout_minutes 决定，在
+// (app)/layout.tsx 里读出后传进来 —— 不再是组件里的默认参数常量。
 export function IdleLogout({ minutes = 30, enabled = true }: { minutes?: number; enabled?: boolean }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 

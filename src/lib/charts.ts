@@ -1,49 +1,26 @@
-// Pure chart geometry helpers, ported verbatim from Guiye数据总览.dc.html so the
-// trend chart, sparklines and donut render identically to the original design.
+// Pure chart geometry helpers.
+//
+// genSeries() 已删除：趋势曲线曾经是线性同余伪随机数当场生成的（还带 0.46 的
+// 「上升偏置」），切换时间区间不发任何请求。现在所有序列都来自
+// src/lib/data/metrics.ts / web.ts 的真实聚合，本文件只负责把数值变成 SVG 路径。
 
-export type Metric = "sales" | "orders" | "received";
-export type Range = "today" | "7" | "30";
+import type { SeriesPoint } from "./types";
 
-export function genSeries(metric: Metric | string, n: number): number[] {
-  const seedMap: Record<string, number> = {
-    sales: 7,
-    orders: 31,
-    received: 53,
-    pv: 13,
-    uv: 17,
-    clicks: 23,
-    inquiry: 29,
-    weborder: 37,
-  };
-  let s = (seedMap[metric] || 11) * 1000 + n;
-  const rnd = () => {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
-  };
-  const baseMap: Record<string, [number, number]> = {
-    sales: [22000, 52000],
-    orders: [70, 210],
-    received: [20000, 49000],
-    pv: [620, 1420],
-    uv: [280, 720],
-    clicks: [180, 440],
-    inquiry: [2, 12],
-    weborder: [6, 26],
-  };
-  const [lo, hi] = baseMap[metric] || [100, 500];
-  const out: number[] = [];
-  let v = (lo + hi) / 2;
-  for (let i = 0; i < n; i++) {
-    v += (rnd() - 0.46) * (hi - lo) * 0.16;
-    v = Math.max(lo * 0.7, Math.min(hi * 1.08, v));
-    out.push(Math.round(v));
-  }
-  return out;
-}
+export type Metric = "sales" | "orders" | "received" | "refunds";
+export type Range = "today" | "7" | "30" | "90";
+
+export const RANGE_DAYS: Record<Range, number> = { today: 1, "7": 7, "30": 30, "90": 90 };
+
+export const METRIC_LABEL: Record<Metric, string> = {
+  sales: "销售额",
+  orders: "订单数",
+  received: "实收",
+  refunds: "退款",
+};
 
 export function fmtVal(metric: Metric | string, v: number): string {
-  if (metric === "orders") return Math.round(v).toLocaleString("en-US") + " 单";
-  return "¥" + Math.round(v).toLocaleString("en-US");
+  if (metric === "orders") return Math.round(v).toLocaleString("zh-CN") + " 单";
+  return "¥" + Math.round(v).toLocaleString("zh-CN");
 }
 
 export interface ChartGeom {
@@ -59,7 +36,14 @@ export interface ChartGeom {
   innerW: number;
 }
 
-export function buildChart(vals: number[]): ChartGeom {
+/**
+ * Build the SVG path for a value series. Returns null for an empty series so the
+ * caller can render an explicit empty state — a quiet day with zero orders used
+ * to produce NaN/Infinity coordinates here.
+ */
+export function buildChart(vals: number[]): ChartGeom | null {
+  if (!vals || vals.length === 0) return null;
+
   const W = 800,
     H = 280,
     pl = 10,
@@ -69,11 +53,14 @@ export function buildChart(vals: number[]): ChartGeom {
   const innerW = W - pl - pr,
     innerH = H - pt - pb;
   const max = Math.max(...vals),
-    min = Math.min(...vals),
-    span = max - min || 1;
-  const X = (i: number) => pl + innerW * (i / (vals.length - 1));
+    min = Math.min(...vals);
+  // 全 0 或全相同的序列：画一条居中的水平线，而不是除以 0。
+  const span = max - min || Math.abs(max) || 1;
+  const X = (i: number) =>
+    vals.length === 1 ? pl + innerW / 2 : pl + innerW * (i / (vals.length - 1));
   const Y = (v: number) => pt + innerH * (1 - (v - min) / span);
   const pts: [number, number][] = vals.map((v, i) => [X(i), Y(v)]);
+
   let line = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
   for (let i = 0; i < pts.length - 1; i++) {
     const [x0, y0] = pts[i],
@@ -85,19 +72,19 @@ export function buildChart(vals: number[]): ChartGeom {
   }
   const area =
     line +
-    ` L ${pts[pts.length - 1][0].toFixed(1)} ${H - pb} L ${pts[0][0].toFixed(
-      1,
-    )} ${H - pb} Z`;
+    ` L ${pts[pts.length - 1][0].toFixed(1)} ${H - pb} L ${pts[0][0].toFixed(1)} ${H - pb} Z`;
   return { line, area, pts, X, Y, W, H, pt, pb, innerW };
 }
 
+/** Sparkline path. Returns "" for an empty or single-point series. */
 export function buildSpark(vals: number[]): string {
+  if (!vals || vals.length < 2) return "";
   const W = 74,
     H = 34,
     p = 4;
   const max = Math.max(...vals),
     min = Math.min(...vals),
-    span = max - min || 1;
+    span = max - min || Math.abs(max) || 1;
   let d = "";
   vals.forEach((v, i) => {
     const x = p + (W - 2 * p) * (i / (vals.length - 1));
@@ -107,28 +94,41 @@ export function buildSpark(vals: number[]): string {
   return d;
 }
 
-export function labelFor(range: Range | string, n: number, i: number): string {
-  if (range === "today") return i + ":00";
-  const d = new Date(2026, 5, 20);
-  d.setDate(d.getDate() - (n - 1 - i));
-  return d.getMonth() + 1 + "/" + d.getDate();
+/** Axis labels come from the series itself — no more frozen `new Date(2026,5,20)`. */
+export function labelsFrom(points: SeriesPoint[]): string[] {
+  return points.map((p) => p.label);
 }
 
-// Build SVG arc dash segments for the channel donut.
+/**
+ * Build SVG arc dash segments for a donut. Slices carry RAW values (counts or
+ * amounts); percentages are computed here against the actual sum, so a real
+ * grouped query no longer has to add up to exactly 100.
+ */
 export function buildDonut(
   slices: { val: number; color: string }[],
   r = 58,
-): { color: string; dasharray: string; dashoffset: string }[] {
+): { color: string; dasharray: string; dashoffset: string; pct: number }[] {
   const C = 2 * Math.PI * r;
+  const sum = slices.reduce((s, x) => s + (x.val > 0 ? x.val : 0), 0);
+  if (sum <= 0) return [];
   let acc = 0;
   return slices.map((c) => {
-    const len = (c.val / 100) * C;
+    const pct = (Math.max(0, c.val) / sum) * 100;
+    const len = (pct / 100) * C;
     const seg = {
       color: c.color,
       dasharray: `${len.toFixed(2)} ${(C - len).toFixed(2)}`,
       dashoffset: (-acc).toFixed(2),
+      pct,
     };
     acc += len;
     return seg;
   });
+}
+
+/** Percentage of the total for each slice (for legends). */
+export function slicePercents(slices: { val: number }[]): number[] {
+  const sum = slices.reduce((s, x) => s + (x.val > 0 ? x.val : 0), 0);
+  if (sum <= 0) return slices.map(() => 0);
+  return slices.map((s) => (Math.max(0, s.val) / sum) * 100);
 }

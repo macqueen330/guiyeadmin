@@ -1,5 +1,11 @@
-// Shared palette helpers for status / source tags, kept in one place so every
-// module renders the same colors as the original design.
+// Shared palette helpers for status / source tags.
+//
+// 这些 Record 是**内置默认值**：它们保证每个合法取值都有中文名和配色（TS 会检查
+// 完整性）。运营在系统设置里改的标签存在 Supabase 的 dictionaries 表，运行时覆盖
+// 这里的默认值 —— 见 src/lib/dict.ts 与 src/lib/data/dict.ts。
+//
+// 重要：不要再直接 `ORDER_STATUS[value]` 索引。数据库返回的字符串不受 TS 约束，
+// 未知取值会得到 undefined 并在 `.text` 处抛错。统一用 toneOr() / useDict()。
 
 import type {
   OrderSource,
@@ -23,6 +29,21 @@ export interface Tone {
   text: string;
   color: string;
   bg: string;
+}
+
+/** 未知 / 缺失取值的兜底样式 —— 永远不要让字典查找抛错。 */
+export const UNKNOWN_TONE: Tone = { text: "未知", color: "#6b716d", bg: "#f1f2f0" };
+
+/** 总函数式字典查找。`code` 可以是 null / 未知字符串。 */
+export function toneOr(
+  map: Record<string, Tone> | undefined,
+  code: string | null | undefined,
+  fallbackText?: string,
+): Tone {
+  if (!code) return fallbackText ? { ...UNKNOWN_TONE, text: fallbackText } : UNKNOWN_TONE;
+  const hit = map?.[code];
+  if (hit) return hit;
+  return { ...UNKNOWN_TONE, text: fallbackText ?? code };
 }
 
 export const ORDER_STATUS: Record<OrderStatus, Tone> = {
@@ -66,11 +87,11 @@ export const SETTLEMENT_STATUS: Record<SettlementStatus, Tone> = {
   overdue: { text: "已逾期", color: "#c0392b", bg: "#fdf0ef" },
 };
 
-export const SETTLEMENT_TYPE: Record<string, string> = {
-  dealer_payout: "渠道结算",
-  refund: "退款",
-  receivable: "应收账款",
-  invoice: "开票",
+export const SETTLEMENT_TYPE: Record<string, Tone> = {
+  dealer_payout: { text: "渠道结算", color: "#c2703d", bg: "#fbf0e6" },
+  refund: { text: "退款", color: "#c0392b", bg: "#fdf0ef" },
+  receivable: { text: "应收账款", color: "#2b6cb0", bg: "#eef4ff" },
+  invoice: { text: "开票", color: "#5b6470", bg: "#eef0f2" },
 };
 
 // ---- Order Center: separated dimensions & status lines ----
@@ -164,11 +185,30 @@ export const ADMIN_STATUS: Record<AdminStatus, Tone> = {
   closed: { text: "已注销", color: "#6b716d", bg: "#f1f2f0" },
 };
 
-// 手机号脱敏（三级默认脱敏；一级 / 授权财务可见完整）。
-export function maskPhone(phone: string): string {
+// 手机号脱敏。可见完整号码的最低等级由 security.mask_phone_min_level 配置决定。
+export function maskPhone(phone: string | null | undefined): string {
+  if (!phone) return "—";
   const d = phone.replace(/\D/g, "");
   if (d.length < 7) return phone;
   return `${d.slice(0, 3)}****${d.slice(-4)}`;
+}
+
+export function maskEmail(email: string | null | undefined): string {
+  if (!email) return "—";
+  const [name, domain] = email.split("@");
+  if (!domain) return email;
+  const head = name.slice(0, Math.min(2, name.length));
+  return `${head}${"*".repeat(Math.max(2, name.length - 2))}@${domain}`;
+}
+
+const LEVEL_RANK: Record<AdminLevel, number> = { L1: 3, L2: 2, L3: 1 };
+
+/** 该等级是否可以看到完整手机号 / 邮箱。 */
+export function canSeeFullContact(
+  level: AdminLevel,
+  minLevel: AdminLevel = "L2",
+): boolean {
+  return LEVEL_RANK[level] >= LEVEL_RANK[minLevel];
 }
 
 // Deterministic avatar palette (matches the prototype's `av` array).
@@ -182,7 +222,12 @@ export const AVATAR_TONES: { bg: string; color: string }[] = [
 ];
 
 export function avatarTone(seed: number) {
-  return AVATAR_TONES[seed % AVATAR_TONES.length];
+  return AVATAR_TONES[Math.abs(seed) % AVATAR_TONES.length];
+}
+
+/** 名字首字母，空值安全。 */
+export function initial(name: string | null | undefined): string {
+  return name && name.length > 0 ? name[0] : "?";
 }
 
 export const TONE_BG: Record<string, string> = {
@@ -203,10 +248,100 @@ export const TONE_FG: Record<string, string> = {
   violet: "#8a6fb0",
 };
 
-export function fmtCurrency(n: number): string {
-  return "¥" + Math.round(n).toLocaleString("en-US");
+// ---- 数值 / 时间格式化 -------------------------------------------------------
+
+export interface CurrencyOptions {
+  /** 小数位。默认 0（整单金额）；手续费等小额传 2，否则明细与合计对不上。 */
+  decimals?: number;
+  symbol?: string;
 }
 
-export function fmtNumber(n: number): string {
-  return Math.round(n).toLocaleString("en-US");
+export function fmtCurrency(n: number | null | undefined, opts: CurrencyOptions = {}): string {
+  const { decimals = 0, symbol = "¥" } = opts;
+  const v = typeof n === "number" && Number.isFinite(n) ? n : 0;
+  return (
+    symbol +
+    v.toLocaleString("zh-CN", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })
+  );
+}
+
+/** 金额精确显示：有小数就显示 2 位，没有就显示整数。 */
+export function fmtMoney(n: number | null | undefined, symbol = "¥"): string {
+  const v = typeof n === "number" && Number.isFinite(n) ? n : 0;
+  return fmtCurrency(v, { decimals: Number.isInteger(v) ? 0 : 2, symbol });
+}
+
+export function fmtNumber(n: number | null | undefined): string {
+  const v = typeof n === "number" && Number.isFinite(n) ? n : 0;
+  return Math.round(v).toLocaleString("zh-CN");
+}
+
+export function fmtPercent(n: number | null | undefined, decimals = 1): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—";
+  return `${n.toFixed(decimals)}%`;
+}
+
+/** 安全的百分比：分母为 0 时返回 null 而不是 NaN / Infinity。 */
+export function ratio(numerator: number, denominator: number): number | null {
+  if (!denominator) return null;
+  return (numerator / denominator) * 100;
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+export function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export function fmtDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${fmtDate(iso)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function fmtTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** 秒 → "2分18秒"（统一口径，取代 "2:36" 与 "2分36秒" 混用）。 */
+export function fmtDuration(seconds: number | null | undefined): string {
+  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return "—";
+  const s = Math.round(seconds);
+  const m = Math.floor(s / 60);
+  return m > 0 ? `${m}分${pad(s % 60)}秒` : `${s}秒`;
+}
+
+export function fmtRelative(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "刚刚";
+  if (mins < 60) return `${mins} 分钟前`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} 天前`;
+  return fmtDate(iso);
+}
+
+/** 距今天数（负数 = 已逾期）。 */
+export function daysUntil(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86_400_000);
 }

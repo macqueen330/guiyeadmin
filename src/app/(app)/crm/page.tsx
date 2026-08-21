@@ -1,26 +1,55 @@
 import { StatStrip, type Stat } from "@/components/ui/StatStrip";
 import { SubTabs } from "@/components/ui/SubTabs";
-import { getCustomers, getOrders } from "@/lib/data/queries";
+import {
+  getCustomerTagLinks,
+  getCustomerTags,
+  getCustomers,
+  getMembershipTiers,
+  getOrders,
+} from "@/lib/data/queries";
+import { loadSettings } from "@/lib/data/settings";
+import { daysAgo } from "@/lib/data/metrics";
 import { fmtCurrency } from "@/lib/tokens";
 import { navItemByKey, activeSubView } from "@/lib/nav";
+import { requireModule } from "@/lib/auth/context";
 import { CrmView } from "./CrmView";
+
+export const dynamic = "force-dynamic";
 
 export default async function CrmPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; new?: string; q?: string }>;
 }) {
-  const { view } = await searchParams;
+  await requireModule("crm");
+
+  const { view, new: newParam, q } = await searchParams;
   const item = navItemByKey("crm");
   const active = activeSubView(item, view)?.key ?? "consumers";
 
-  const [customers, orders] = await Promise.all([getCustomers(), getOrders()]);
+  const [customers, orders, tags, tagLinks, tiers, settings] = await Promise.all([
+    getCustomers(),
+    getOrders(),
+    getCustomerTags(),
+    getCustomerTagLinks(),
+    getMembershipTiers(),
+    loadSettings(),
+  ]);
 
   // 客户中心只管 C 端消费者（type === individual）。
   const consumers = customers.filter((c) => c.type === "individual");
-  const memberCount = consumers.filter((c) => c.level !== "新客").length;
-  const newCount = consumers.filter((c) => c.level === "新客").length;
+  const baseTier = tiers[0];
+  const memberCount = consumers.filter((c) =>
+    baseTier ? c.tier_id !== baseTier.id : c.level !== "新客",
+  ).length;
+  const newCount = consumers.length - memberCount;
   const totalSpent = consumers.reduce((sum, c) => sum + c.total_spent, 0);
+
+  // 待跟进：超过配置天数没有联系过（阈值来自 app_settings，不是写死的 7）。
+  const followCutoff = daysAgo(settings.crm.followUpDays);
+  const needFollow = consumers.filter(
+    (c) => !c.last_contacted_at || new Date(c.last_contacted_at).getTime() < followCutoff,
+  ).length;
 
   const stats: Stat[] = [
     {
@@ -34,7 +63,7 @@ export default async function CrmPage({
     {
       label: "会员",
       value: String(memberCount),
-      sub: "已注册会员",
+      sub: baseTier ? `高于「${baseTier.name}」门槛` : "已升级客户",
       icon: "check",
       iconColor: "#b07d18",
       iconBg: "#fbf4e3",
@@ -50,6 +79,15 @@ export default async function CrmPage({
       valueColor: "#16894f",
     },
     {
+      label: "待跟进",
+      value: String(needFollow),
+      sub: `超 ${settings.crm.followUpDays} 天未联系`,
+      icon: "clock",
+      iconColor: "#b45309",
+      iconBg: "#fff7ec",
+      valueColor: needFollow > 0 ? "#b45309" : undefined,
+    },
+    {
       label: "累计消费",
       value: fmtCurrency(totalSpent),
       sub: "消费者 LTV 合计",
@@ -61,9 +99,18 @@ export default async function CrmPage({
 
   return (
     <>
-      <StatStrip stats={stats} />
+      <StatStrip stats={stats} columns={5} empty="还没有客户数据" />
       <SubTabs item={item} active={active} />
-      <CrmView customers={consumers} orders={orders} view={active} />
+      <CrmView
+        customers={consumers}
+        orders={orders}
+        tags={tags}
+        tagLinks={tagLinks}
+        tiers={tiers}
+        view={active}
+        openNew={newParam === "1"}
+        query={q}
+      />
     </>
   );
 }

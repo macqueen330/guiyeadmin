@@ -15,6 +15,16 @@ const eslintConfig = defineConfig([
     // Original Claude Design handoff bundle — reference prototypes, not source.
     "design-reference/**",
   ]),
+  {
+    rules: {
+      // Server Action 的签名固定是 (prevState, formData)，很多 action 用不到
+      // 第一个参数；用 `_` 前缀显式标注「刻意不用」，不再当作未使用变量报警。
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

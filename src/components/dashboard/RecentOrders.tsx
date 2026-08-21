@@ -1,8 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import type { Order } from "@/lib/types";
-import { ORDER_SOURCE, ORDER_STATUS, avatarTone, fmtCurrency } from "@/lib/tokens";
+import { avatarTone, fmtCurrency, fmtDateTime, initial } from "@/lib/tokens";
 import { StatusTag, Chip } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
+import { useDict } from "@/components/shell/DictProvider";
 
 const th: React.CSSProperties = {
   textAlign: "left",
@@ -19,6 +22,7 @@ const td: React.CSSProperties = {
 };
 
 export function RecentOrders({ orders }: { orders: Order[] }) {
+  const dict = useDict();
   return (
     <div
       style={{
@@ -37,7 +41,7 @@ export function RecentOrders({ orders }: { orders: Order[] }) {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Link
-            href="/orders"
+            href="/orders?view=exception"
             className="hoverable"
             style={{
               display: "flex",
@@ -50,11 +54,11 @@ export function RecentOrders({ orders }: { orders: Order[] }) {
               border: "1px solid var(--line)",
               borderRadius: 8,
               padding: "7px 12px",
-              cursor: "pointer",
+              textDecoration: "none",
             }}
           >
             <Icon name="filter" size={13} />
-            筛选
+            只看异常
           </Link>
           <Link
             href="/orders"
@@ -80,11 +84,19 @@ export function RecentOrders({ orders }: { orders: Order[] }) {
             <th style={th}>客户 / 国家</th>
             <th style={th}>来源</th>
             <th style={th}>发货方</th>
+            <th style={th}>下单时间</th>
             <th style={{ ...th, textAlign: "right" }}>金额</th>
             <th style={{ ...th, textAlign: "center" }}>状态</th>
           </tr>
         </thead>
         <tbody>
+          {orders.length === 0 && (
+            <tr>
+              <td colSpan={7} style={{ ...td, textAlign: "center", color: "var(--muted)", padding: "28px 8px" }}>
+                还没有订单。新建第一笔订单后，这里会显示最新交易。
+              </td>
+            </tr>
+          )}
           {orders.map((o, i) => {
             const av = avatarTone(i);
             return (
@@ -111,7 +123,7 @@ export function RecentOrders({ orders }: { orders: Order[] }) {
                         flex: "none",
                       }}
                     >
-                      {o.customer_name[0]}
+                      {initial(o.customer_name)}
                     </span>
                     <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
                       <span style={{ fontWeight: 600, color: "#2c322e" }}>{o.customer_name}</span>
@@ -120,14 +132,17 @@ export function RecentOrders({ orders }: { orders: Order[] }) {
                   </div>
                 </td>
                 <td style={td}>
-                  <Chip tone={ORDER_SOURCE[o.source]} />
+                  <Chip tone={dict.tone("order_source", o.source)} />
                 </td>
-                <td style={{ ...td, color: "#4a514c" }}>{o.ship_from}</td>
+                <td style={{ ...td, color: "#4a514c" }}>{o.ship_from || "—"}</td>
+                <td style={{ ...td, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                  {fmtDateTime(o.created_at)}
+                </td>
                 <td style={{ ...td, fontWeight: 700, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                   {fmtCurrency(o.amount)}
                 </td>
                 <td style={{ ...td, textAlign: "center" }}>
-                  <StatusTag tone={ORDER_STATUS[o.status]} />
+                  <StatusTag tone={dict.tone("order_status", o.status)} />
                 </td>
               </tr>
             );

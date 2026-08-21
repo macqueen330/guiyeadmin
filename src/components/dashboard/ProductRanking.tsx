@@ -1,5 +1,5 @@
-import { productRanking } from "@/lib/mock/data";
 import { fmtCurrency, fmtNumber } from "@/lib/tokens";
+import type { ProductRank } from "@/lib/types";
 
 const rankC = [
   { bg: "var(--accent-soft)", color: "var(--accent)" },
@@ -15,9 +15,10 @@ function barColor(i: number) {
 }
 
 // 产品销售排行 — replaces the old "销售额·渠道" panel, which duplicated the donut.
-// More useful for product direction: 销售额 / 销量 / 订单数 / 占比 / 环比.
-export function ProductRanking({ limit }: { limit?: number }) {
-  const rows = limit ? productRanking.slice(0, limit) : productRanking;
+// 销售额 / 销量 / 订单数 / 占比 / 环比 全部由当月订单明细实时汇总
+// （src/lib/data/metrics.ts getProductRanking），pct 相对榜首派生。
+export function ProductRanking({ rows, limit }: { rows: ProductRank[]; limit?: number }) {
+  const visible = limit ? rows.slice(0, limit) : rows;
   return (
     <div
       style={{
@@ -33,9 +34,14 @@ export function ProductRanking({ limit }: { limit?: number }) {
         <span style={{ fontSize: 15, fontWeight: 700 }}>产品销售排行</span>
         <span style={{ fontSize: 12, color: "var(--muted)" }}>按销售额排序 · 含销量 / 订单 / 环比</span>
       </div>
+      {visible.length === 0 ? (
+        <div style={{ padding: "26px 0", fontSize: 12.5, color: "var(--muted)", textAlign: "center" }}>
+          本月还没有成交明细
+        </div>
+      ) : (
       <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 12 }}>
-        {rows.map((p, i) => (
-          <div key={p.name} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {visible.map((p, i) => (
+          <div key={p.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
               <span
                 style={{
@@ -71,7 +77,14 @@ export function ProductRanking({ limit }: { limit?: number }) {
               </span>
             </div>
             <div style={{ height: 5, borderRadius: 5, background: "var(--bg)", overflow: "hidden" }}>
-              <div style={{ height: "100%", borderRadius: 5, background: barColor(i), width: p.pct + "%" }} />
+              <div
+                style={{
+                  height: "100%",
+                  borderRadius: 5,
+                  background: barColor(i),
+                  width: `${Math.max(0, Math.min(100, p.pct))}%`,
+                }}
+              />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, color: "var(--muted)" }}>
               <span>销量 {fmtNumber(p.units)}</span>
@@ -79,12 +92,13 @@ export function ProductRanking({ limit }: { limit?: number }) {
               <span>订单 {fmtNumber(p.orders)}</span>
               <span style={{ marginLeft: "auto", fontWeight: 600, color: p.growth >= 0 ? "#16894f" : "#c0392b" }}>
                 环比 {p.growth >= 0 ? "+" : ""}
-                {p.growth}%
+                {p.growth.toFixed(1)}%
               </span>
             </div>
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

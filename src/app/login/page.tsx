@@ -1,13 +1,15 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentAdmin, isDemoMode } from "@/lib/auth/context";
+import { getCurrentAdmin, isSystemConfigured, missingEnvVars } from "@/lib/auth/context";
+import { loadSettingsUnauthenticated } from "@/lib/data/settings";
 import { LoginForm } from "./LoginForm";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "登录 · GUIYE 瑰野 运营控制台" };
 
 const REASONS: Record<string, string> = {
   idle: "长时间未操作，已自动退出，请重新登录",
   forced: "登录状态已失效，请重新登录",
+  unconfigured: "系统尚未完成部署配置，暂时无法登录",
 };
 
 export default async function LoginPage({
@@ -16,13 +18,19 @@ export default async function LoginPage({
   searchParams: Promise<{ redirect?: string; reason?: string }>;
 }) {
   const { redirect: redirectTo, reason } = await searchParams;
-  const demo = isDemoMode();
 
-  // Already signed in → go straight to the console.
-  if (!demo) {
+  // 原状：isDemoMode() 为真时，这里渲染一个「以超级管理员身份进入控制台」的按钮，
+  // 并把 SUPABASE_SERVICE_ROLE_KEY 这个变量名直接印给任何访客看。
+  // 演示身份已整体移除 —— 未配置就是不可用，而不是降级成无鉴权入口。
+  const configured = isSystemConfigured();
+  const missing = configured ? [] : missingEnvVars();
+
+  if (configured) {
     const admin = await getCurrentAdmin();
     if (admin) redirect(redirectTo && redirectTo.startsWith("/") ? redirectTo : "/");
   }
+
+  const { security } = await loadSettingsUnauthenticated();
 
   return (
     <div
@@ -52,7 +60,9 @@ export default async function LoginPage({
             <span style={{ color: "#fff", fontWeight: 800, fontSize: 22, letterSpacing: "-.5px" }}>瑰</span>
           </div>
           <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 3 }}>
-            <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: ".5px" }}>GUIYE 瑰野 · 运营控制台</span>
+            <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: ".5px" }}>
+              GUIYE 瑰野 · 运营控制台
+            </span>
             <span style={{ fontSize: 13, color: "var(--muted)" }}>管理员登录</span>
           </div>
         </div>
@@ -74,7 +84,9 @@ export default async function LoginPage({
           </div>
         )}
 
-        {demo ? (
+        {configured ? (
+          <LoginForm redirectTo={redirectTo} />
+        ) : (
           <div
             style={{
               background: "var(--card)",
@@ -83,40 +95,26 @@ export default async function LoginPage({
               padding: 24,
               display: "flex",
               flexDirection: "column",
-              gap: 14,
+              gap: 12,
               boxShadow: "0 8px 30px rgba(20,40,30,.06)",
             }}
           >
-            <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7 }}>
-              当前为<strong style={{ color: "var(--ink)" }}>演示模式</strong>（未配置 Supabase 鉴权）。
-              配置 <code>SUPABASE_SERVICE_ROLE_KEY</code> 后将启用真实登录、账号管理与权限校验。
+            <span style={{ fontSize: 14.5, fontWeight: 700, color: "#c0392b" }}>系统尚未配置</span>
+            <div style={{ fontSize: 12.5, color: "var(--muted)", lineHeight: 1.75 }}>
+              控制台还没有连接数据库，因此无法登录，也不会提供任何降级入口。
+              请部署者在运行环境中补齐 {missing.length} 项配置后重启服务。
             </div>
-            <Link
-              href="/"
-              style={{
-                height: 42,
-                borderRadius: 10,
-                background: "var(--accent)",
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: 14,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                textDecoration: "none",
-              }}
-            >
-              以超级管理员身份进入控制台
-            </Link>
+            <div style={{ fontSize: 12, color: "#4a514c", lineHeight: 1.8 }}>
+              部署说明见仓库 <code>README.md</code> 与 <code>.env.example</code>。
+            </div>
           </div>
-        ) : (
-          <LoginForm redirectTo={redirectTo} />
         )}
 
         <div style={{ textAlign: "center", fontSize: 11.5, color: "var(--muted)", lineHeight: 1.7 }}>
-          连续输错 5 次将锁定账号 30 分钟 · 30 分钟无操作自动退出
+          连续输错 {security.maxLoginAttempts} 次将锁定账号 {security.lockMinutes} 分钟 ·{" "}
+          {security.idleLogoutMinutes} 分钟无操作自动退出
           <br />
-          一级管理员建议开启二次验证
+          会话最长 {security.sessionHours} 小时
         </div>
       </div>
     </div>

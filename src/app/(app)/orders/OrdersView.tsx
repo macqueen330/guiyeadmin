@@ -3,33 +3,22 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { Order } from "@/lib/types";
-import {
-  ORDER_TYPE,
-  ORDER_CHANNEL,
-  PAYMENT_METHOD,
-  PAY_STATUS,
-  FULFILL_STATUS,
-  avatarTone,
-  fmtCurrency,
-} from "@/lib/tokens";
+import { avatarTone, fmtCurrency, fmtDateTime, initial } from "@/lib/tokens";
 import { StatusTag, Chip } from "@/components/ui/Tag";
 import { FilterableTable, type FilterDef } from "@/components/ui/FilterableTable";
 import type { Column } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-
-const payStatusOptions = Object.entries(PAY_STATUS).map(([value, t]) => ({ value, label: t.text }));
-const fulfillStatusOptions = Object.entries(FULFILL_STATUS).map(([value, t]) => ({ value, label: t.text }));
-
-const NEW_ORDER_TYPES = [
-  { key: "retail", label: "新建零售订单" },
-  { key: "channel", label: "新建渠道订单" },
-  { key: "enterprise", label: "新建企业采购" },
-  { key: "sample", label: "新建样品订单" },
-  { key: "reissue", label: "新建补发订单" },
-];
-
-const BATCH_ACTIONS = ["批量审核", "批量分配仓库", "批量发货", "批量导出", "批量打印面单", "批量关闭"];
+import { ActionForm, ExportForm, SubmitButton } from "@/components/ui/Form";
+import { useDict } from "@/components/shell/DictProvider";
+import { useViewer } from "@/components/shell/AdminProvider";
+import { can } from "@/lib/auth/permissions";
+import {
+  bulkUpdateOrdersAction,
+  exportOrdersAction,
+  updateOrderStatusAction,
+} from "./actions";
+import { OrderCreateModal, type OrderFormRefs } from "./OrderCreateModal";
 
 // view (sub-tab) → row predicate
 const VIEW_FILTER: Record<string, (o: Order) => boolean> = {
@@ -41,81 +30,71 @@ const VIEW_FILTER: Record<string, (o: Order) => boolean> = {
   exception: (o) => o.fulfill_status === "fulfill_exception",
 };
 
-function NewOrderButton() {
-  const [open, setOpen] = useState(false);
-  return (
-    <div style={{ position: "relative" }}>
-      <Button variant="primary" icon="plus" onClick={() => setOpen((o) => !o)}>
-        新建订单
-        <Icon name="chevronDown" size={13} strokeWidth={2.4} style={{ marginLeft: 2 }} />
-      </Button>
-      {open && (
-        <>
-          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 10 }} />
-          <div
-            style={{
-              position: "absolute",
-              top: 44,
-              right: 0,
-              zIndex: 11,
-              background: "var(--card)",
-              border: "1px solid var(--line)",
-              borderRadius: 11,
-              boxShadow: "0 8px 24px rgba(0,0,0,.10)",
-              padding: 6,
-              minWidth: 168,
-            }}
-          >
-            {NEW_ORDER_TYPES.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setOpen(false)}
-                className="hoverable"
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "9px 12px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: "transparent",
-                  fontFamily: "inherit",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: "#3a403c",
-                  cursor: "pointer",
-                }}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function contextAction(o: Order): string | null {
-  if (o.pay_status === "unpaid" || o.pay_status === "paying") return "收款确认";
-  if (o.pay_status === "pay_exception" || o.pay_status === "failed") return "处理异常";
-  if (o.fulfill_status === "fulfill_exception") return "处理异常";
-  if (o.fulfill_status === "prep" || o.fulfill_status === "wait_ship" || o.fulfill_status === "assign")
-    return "发货";
+/**
+ * 行内快捷操作：什么状态显示什么按钮 + 点了之后到底改哪个字段。
+ * 原来只返回一个中文标签，渲染成不可点的 <span>。
+ */
+function contextAction(
+  o: Order,
+): { label: string; field: string; value: string; permission: string } | null {
+  if (o.pay_status === "unpaid" || o.pay_status === "paying") {
+    return { label: "收款确认", field: "pay_status", value: "paid", permission: "审核订单" };
+  }
+  if (o.pay_status === "pay_exception" || o.pay_status === "failed") {
+    return { label: "重新收款", field: "pay_status", value: "paid", permission: "审核订单" };
+  }
+  if (o.fulfill_status === "fulfill_exception") {
+    return { label: "恢复备货", field: "fulfill_status", value: "prep", permission: "修改订单" };
+  }
+  if (o.fulfill_status === "assign") {
+    return { label: "开始备货", field: "fulfill_status", value: "prep", permission: "修改订单" };
+  }
+  if (o.fulfill_status === "prep") {
+    return { label: "标记待发", field: "fulfill_status", value: "wait_ship", permission: "修改订单" };
+  }
+  if (o.fulfill_status === "wait_ship") {
+    return { label: "确认发货", field: "fulfill_status", value: "shipped", permission: "修改订单" };
+  }
+  if (o.fulfill_status === "shipped") {
+    return { label: "确认签收", field: "fulfill_status", value: "signed", permission: "修改订单" };
+  }
   return null;
 }
+
+const BATCH_ACTIONS: { label: string; field: string; value: string; permission: string }[] = [
+  { label: "批量确认收款", field: "pay_status", value: "paid", permission: "审核订单" },
+  { label: "批量开始备货", field: "fulfill_status", value: "prep", permission: "修改订单" },
+  { label: "批量标记待发", field: "fulfill_status", value: "wait_ship", permission: "修改订单" },
+  { label: "批量确认发货", field: "fulfill_status", value: "shipped", permission: "修改订单" },
+  { label: "批量标记异常", field: "fulfill_status", value: "fulfill_exception", permission: "修改订单" },
+  { label: "批量进入对账", field: "settle_status", value: "reconciling", permission: "修改订单" },
+];
 
 export function OrdersView({
   orders,
   view = "all",
   refundedByOrder = {},
+  refs,
+  openNew = false,
+  query,
 }: {
   orders: Order[];
   view?: string;
   refundedByOrder?: Record<string, number>;
+  refs: OrderFormRefs;
+  openNew?: boolean;
+  /** 全局搜索跳转过来时的初始关键词 */
+  query?: string;
 }) {
+  const dict = useDict();
+  const viewer = useViewer();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [newOpen, setNewOpen] = useState(openNew);
+  const [advanced, setAdvanced] = useState(false);
+
   const rows = orders.filter(VIEW_FILTER[view] ?? VIEW_FILTER.all);
+  const canCreate = can(viewer, "orders", "新建订单");
+  const canExport = can(viewer, "orders", "导出订单");
 
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -133,11 +112,12 @@ export function OrdersView({
       return next;
     });
 
-  const checkbox = (checked: boolean, onChange: () => void) => (
+  const checkbox = (checked: boolean, onChange: () => void, label: string) => (
     <input
       type="checkbox"
       checked={checked}
       onChange={onChange}
+      aria-label={label}
       style={{ width: 15, height: 15, cursor: "pointer", accentColor: "var(--accent)" }}
     />
   );
@@ -145,16 +125,16 @@ export function OrdersView({
   const columns: Column<Order>[] = [
     {
       key: "select",
-      header: checkbox(allOn, toggleAll),
+      header: checkbox(allOn, toggleAll, "全选"),
       width: 34,
-      render: (o) => checkbox(selected.has(o.id), () => toggle(o.id)),
+      render: (o) => checkbox(selected.has(o.id), () => toggle(o.id), `选择 ${o.order_no}`),
     },
     {
       key: "order_no",
       header: "订单号",
       render: (o) => (
         <Link
-          href={`/orders/${o.order_no.replace("#", "")}`}
+          href={`/orders/${encodeURIComponent(o.order_no)}`}
           style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "var(--accent)" }}
         >
           {o.order_no}
@@ -183,7 +163,7 @@ export function OrdersView({
                 flex: "none",
               }}
             >
-              {o.customer_name[0]}
+              {initial(o.customer_name)}
             </span>
             <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
               <span style={{ fontWeight: 600, color: "#2c322e" }}>{o.customer_name}</span>
@@ -201,20 +181,24 @@ export function OrdersView({
       header: "订单类型 / 下单渠道",
       render: (o) => (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
-          <Chip tone={ORDER_TYPE[o.order_type]} />
-          <span style={{ fontSize: 10.5, color: "var(--muted)" }}>{ORDER_CHANNEL[o.order_channel].text}</span>
+          <Chip tone={dict.tone("order_type", o.order_type)} />
+          <span style={{ fontSize: 10.5, color: "var(--muted)" }}>
+            {dict.label("order_channel", o.order_channel)}
+          </span>
         </div>
       ),
     },
     {
       key: "payment_method",
       header: "支付方式",
-      render: (o) => <Chip tone={PAYMENT_METHOD[o.payment_method]} />,
+      render: (o) => <Chip tone={dict.tone("payment_method", o.payment_method)} />,
     },
     {
       key: "ship_from",
       header: "发货仓",
-      render: (o) => <span style={{ color: "#4a514c", fontSize: 12 }}>{o.ship_from}</span>,
+      render: (o) => (
+        <span style={{ color: "#4a514c", fontSize: 12 }}>{o.ship_from || "未分配"}</span>
+      ),
     },
     {
       key: "amount",
@@ -246,20 +230,20 @@ export function OrdersView({
       key: "pay_status",
       header: "支付状态",
       align: "center",
-      render: (o) => <StatusTag tone={PAY_STATUS[o.pay_status]} />,
+      render: (o) => <StatusTag tone={dict.tone("pay_status", o.pay_status)} />,
     },
     {
       key: "fulfill_status",
       header: "履约状态",
       align: "center",
-      render: (o) => <StatusTag tone={FULFILL_STATUS[o.fulfill_status]} />,
+      render: (o) => <StatusTag tone={dict.tone("fulfill_status", o.fulfill_status)} />,
     },
     {
       key: "created_at",
       header: "下单时间",
       render: (o) => (
-        <span style={{ color: "var(--muted)", fontSize: 12 }}>
-          {o.created_at.slice(0, 10)} {o.created_at.slice(11, 16)}
+        <span style={{ color: "var(--muted)", fontSize: 12, whiteSpace: "nowrap" }}>
+          {fmtDateTime(o.created_at)}
         </span>
       ),
     },
@@ -269,28 +253,32 @@ export function OrdersView({
       align: "right",
       render: (o) => {
         const action = contextAction(o);
+        const allowed = action ? can(viewer, "orders", action.permission) : false;
         return (
-          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
             <Link
-              href={`/orders/${o.order_no.replace("#", "")}`}
-              style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)", padding: "5px 10px", borderRadius: 7, background: "var(--accent-soft)" }}
+              href={`/orders/${encodeURIComponent(o.order_no)}`}
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--accent)",
+                padding: "5px 10px",
+                borderRadius: 7,
+                background: "var(--accent-soft)",
+              }}
             >
               查看
             </Link>
-            {action && (
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "#4a514c",
-                  padding: "5px 10px",
-                  borderRadius: 7,
-                  border: "1px solid var(--line)",
-                  cursor: "pointer",
-                }}
+            {action && allowed && (
+              <ActionForm
+                action={updateOrderStatusAction}
+                hidden={{ order_no: o.order_no, field: action.field, value: action.value }}
+                style={{ gap: 0 }}
               >
-                {action}
-              </span>
+                <SubmitButton variant="secondary" style={{ height: 28, padding: "0 10px", fontSize: 12 }}>
+                  {action.label}
+                </SubmitButton>
+              </ActionForm>
             )}
           </div>
         );
@@ -298,15 +286,59 @@ export function OrdersView({
     },
   ];
 
-  const filters: FilterDef<Order>[] =
-    view === "all"
-      ? [
-          { key: "pay_status", label: "支付状态", options: payStatusOptions, match: (o, v) => o.pay_status === v },
-          { key: "fulfill_status", label: "履约状态", options: fulfillStatusOptions, match: (o, v) => o.fulfill_status === v },
-        ]
-      : view === "refund" || view === "exception"
-        ? []
-        : [{ key: "pay_status", label: "支付状态", options: payStatusOptions, match: (o, v) => o.pay_status === v }];
+  const baseFilters: FilterDef<Order>[] = [
+    {
+      key: "pay_status",
+      label: "支付状态",
+      options: dict.filterOptions("pay_status").slice(1),
+      match: (o, v) => o.pay_status === v,
+    },
+    {
+      key: "fulfill_status",
+      label: "履约状态",
+      options: dict.filterOptions("fulfill_status").slice(1),
+      match: (o, v) => o.fulfill_status === v,
+    },
+  ];
+
+  // 「高级筛选」不再是无 handler 的按钮：点开会追加类型 / 渠道 / 结算三组筛选。
+  const advancedFilters: FilterDef<Order>[] = [
+    {
+      key: "order_type",
+      label: "订单类型",
+      options: dict.filterOptions("order_type").slice(1),
+      match: (o, v) => o.order_type === v,
+    },
+    {
+      key: "order_channel",
+      label: "下单渠道",
+      options: dict.filterOptions("order_channel").slice(1),
+      match: (o, v) => o.order_channel === v,
+    },
+    {
+      key: "settle_status",
+      label: "结算状态",
+      options: dict.filterOptions("settle_status").slice(1),
+      match: (o, v) => o.settle_status === v,
+    },
+    {
+      key: "customer_source",
+      label: "客户来源",
+      options: dict.filterOptions("customer_source").slice(1),
+      match: (o, v) => o.customer_source === v,
+    },
+  ];
+
+  const filters =
+    view === "refund" || view === "exception"
+      ? advanced
+        ? advancedFilters
+        : []
+      : advanced
+        ? [...baseFilters, ...advancedFilters]
+        : baseFilters;
+
+  const selectedNos = rows.filter((r) => selected.has(r.id)).map((r) => r.order_no);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -327,27 +359,38 @@ export function OrdersView({
             已选 {selected.size} 项
           </span>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {BATCH_ACTIONS.map((a) => (
-              <span
-                key={a}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "#3a403c",
-                  background: "var(--card)",
-                  border: "1px solid var(--line)",
-                  padding: "5px 11px",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                }}
+            {BATCH_ACTIONS.filter((a) => can(viewer, "orders", a.permission)).map((a) => (
+              <ActionForm
+                key={a.label}
+                action={bulkUpdateOrdersAction}
+                hidden={{ field: a.field, value: a.value }}
+                onSuccess={() => setSelected(new Set())}
+                style={{ gap: 0 }}
               >
-                {a}
-              </span>
+                {selectedNos.map((no) => (
+                  <input key={no} type="hidden" name="order_no" value={no} />
+                ))}
+                <SubmitButton
+                  variant="secondary"
+                  style={{ height: 30, padding: "0 11px", fontSize: 12, background: "var(--card)" }}
+                >
+                  {a.label}
+                </SubmitButton>
+              </ActionForm>
             ))}
           </div>
           <button
             onClick={() => setSelected(new Set())}
-            style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+            style={{
+              marginLeft: "auto",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--muted)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
           >
             取消
           </button>
@@ -358,18 +401,48 @@ export function OrdersView({
         rows={rows}
         columns={columns}
         filters={filters}
-        searchText={(o) => `${o.order_no} ${o.customer_name} ${o.country} ${o.province ?? ""} ${o.ship_from}`}
+        searchText={(o) =>
+          `${o.order_no} ${o.customer_name} ${o.country} ${o.province ?? ""} ${o.ship_from}`
+        }
         searchPlaceholder="搜索订单号 / 客户 / 地区"
-        empty={view === "exception" ? "暂无发货异常订单" : view === "refund" ? "暂无退款订单" : "该类型暂无订单"}
+        initialQuery={query}
+        empty={
+          view === "exception"
+            ? "暂无发货异常订单"
+            : view === "refund"
+              ? "暂无退款订单"
+              : "该类型暂无订单"
+        }
         rightAction={
           <>
-            <Button variant="secondary" icon="filter">
+            <Button
+              variant={advanced ? "soft" : "secondary"}
+              icon="filter"
+              onClick={() => setAdvanced((v) => !v)}
+            >
               高级筛选
             </Button>
-            <NewOrderButton />
+            {canExport && <ExportForm action={exportOrdersAction} label="导出" reason="订单列表导出" />}
+            {canCreate && (
+              <Button variant="primary" icon="plus" onClick={() => setNewOpen(true)}>
+                新建订单
+                <Icon name="chevronRight" size={13} strokeWidth={2.4} style={{ marginLeft: 2 }} />
+              </Button>
+            )}
           </>
         }
       />
+
+      {canCreate && (
+        <OrderCreateModal
+          open={newOpen}
+          onClose={() => setNewOpen(false)}
+          refs={refs}
+          defaultType={
+            view === "retail" || view === "channel" || view === "enterprise" ? view : "retail"
+          }
+        />
+      )}
     </div>
   );
 }

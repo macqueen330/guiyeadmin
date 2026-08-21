@@ -5,6 +5,7 @@
 // client checks are only for UX.
 
 import {
+  MODULE_KEYS,
   PERMISSION_MODULES,
   ROLE_TEMPLATES,
   grantedActions,
@@ -53,7 +54,12 @@ export function can(actor: PermActor, moduleKey: string, action: string): boolea
 }
 
 // Does the admin have any access to a module (used for menu / page gating)?
+//
+// 注意 `MODULE_KEYS` 判断：历史上角色模板给过一个并不存在的 `channel` 模块，
+// can() 因为找不到模块返回 false，而这里因为「有 grant」返回 true —— 同一权限
+// 两个函数结论相反。现在两者用同一套模块清单。
 export function canViewModule(actor: PermActor, moduleKey: string): boolean {
+  if (!MODULE_KEYS.has(moduleKey)) return false;
   const grant = effectiveGrants(actor)[moduleKey];
   if (!grant) return false;
   if (grant === "all" || grant === "view") return true;

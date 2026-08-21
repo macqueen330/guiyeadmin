@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -30,7 +32,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" className={manrope.variable}>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/*
+          Vercel Web Analytics —— 页面浏览 / 访客数的实时看板（Vercel 控制台 →
+          Analytics）。后台自己的一方埋点走 /api/analytics/collect → web_events，
+          两者互补：Vercel 看流量，Supabase 看流量与订单的关系。
+        */}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }

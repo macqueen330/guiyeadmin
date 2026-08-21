@@ -1,69 +1,33 @@
-import type { ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
 import { SubTabs } from "@/components/ui/SubTabs";
-import { ModulePlaceholder } from "@/components/ui/ModulePlaceholder";
 import { listAuditLogs, type AuditLog } from "@/lib/auth/store";
 import { navItemByKey, activeSubView } from "@/lib/nav";
-import { ADMIN_LEVEL } from "@/lib/tokens";
+import { fmtDateTime, toneOr } from "@/lib/tokens";
 import { AUDITED_ACTIONS } from "@/lib/rbac";
-import type { AdminLevel } from "@/lib/types";
+import { requireModule } from "@/lib/auth/context";
+import { loadSettings } from "@/lib/data/settings";
+import { loadDict, listDictEntries } from "@/lib/data/dict";
+import { loadSecurityPolicies } from "@/lib/data/policy";
+import { listApprovalRules } from "@/lib/data/approvals";
+import { getApprovalRequests, getNotificationRules } from "@/lib/data/queries";
 import { SecurityPolicy } from "./SecurityPolicy";
+import { ApprovalPanel, DictPanel, NotifyPanel, RulesPanel } from "./SettingsPanels";
 
-function OnValue({ text }: { text: string }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#16894f", flex: "none" }} />
-      <span style={{ color: "#16894f" }}>{text}</span>
-    </span>
-  );
-}
+export const dynamic = "force-dynamic";
 
-function Panel({ title, subtitle, rows }: { title: string; subtitle: string; rows: { label: string; sub?: string; value: ReactNode }[] }) {
-  return (
-    <Card style={{ display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 6 }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>{title}</span>
-        <span style={{ fontSize: 12, color: "var(--muted)" }}>{subtitle}</span>
-      </div>
-      <div>
-        {rows.map((row, i) => (
-          <div
-            key={row.label}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-              padding: "12px 0",
-              borderBottom: i === rows.length - 1 ? "none" : "1px solid var(--line)",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#2c322e" }}>{row.label}</span>
-              {row.sub && <span style={{ fontSize: 11.5, color: "var(--muted)" }}>{row.sub}</span>}
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", textAlign: "right" }}>{row.value}</span>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-// Fallback sample shown only in demo mode (no DB / audit table).
-const SAMPLE_LOGS: AuditLog[] = [
-  { id: "1", category: "operation", action: "set_status", actor_id: null, actor_name: "陈思远", actor_level: "L1", target_id: null, target_name: "GY-28471", module: "订单中心", detail: "将订单 GY-28471 状态从「待发货」改为「已发货」", ip: "已记录", device: "Windows / Edge", result: "success", created_at: "2026-07-01 15:26" },
-  { id: "2", category: "operation", action: "update_profile", actor_id: null, actor_name: "陈思远", actor_level: "L1", target_id: null, target_name: "陈思远", module: "个人中心", detail: "修改本人基本资料", ip: "已记录", device: "macOS / Safari", result: "success", created_at: "2026-06-30 18:22" },
-  { id: "3", category: "auth", action: "login_success", actor_id: null, actor_name: "陈思远", actor_level: "L1", target_id: null, target_name: null, module: null, detail: "登录成功", ip: "已记录", device: "macOS / Chrome", result: "success", created_at: "2026-07-01 09:32" },
-];
-
-const th: React.CSSProperties = { textAlign: "left", fontSize: 11, fontWeight: 600, color: "#9a9f9a", padding: "10px 8px", borderBottom: "1px solid var(--line)" };
-const td: React.CSSProperties = { padding: "11px 8px", borderBottom: "1px solid var(--line)", fontSize: 12.5 };
-
-function LevelTag({ level }: { level: string | null }) {
-  const t = ADMIN_LEVEL[(level as AdminLevel) ?? "L1"] ?? ADMIN_LEVEL.L1;
-  return <span style={{ fontSize: 10, fontWeight: 700, color: t.color, background: t.bg, padding: "1px 7px", borderRadius: 20 }}>{t.text}</span>;
-}
+const th: React.CSSProperties = {
+  textAlign: "left",
+  fontSize: 11,
+  fontWeight: 600,
+  color: "#9a9f9a",
+  padding: "10px 8px",
+  borderBottom: "1px solid var(--line)",
+};
+const td: React.CSSProperties = {
+  padding: "11px 8px",
+  borderBottom: "1px solid var(--line)",
+  fontSize: 12.5,
+};
 
 function ResultTag({ result }: { result: string }) {
   const tone =
@@ -72,10 +36,33 @@ function ResultTag({ result }: { result: string }) {
       : result === "denied"
         ? { c: "#c0392b", b: "#fdf0ef", t: "拒绝" }
         : { c: "#b45309", b: "#fff7ec", t: "失败" };
-  return <span style={{ fontSize: 10.5, fontWeight: 700, color: tone.c, background: tone.b, padding: "2px 8px", borderRadius: 20 }}>{tone.t}</span>;
+  return (
+    <span
+      style={{
+        fontSize: 10.5,
+        fontWeight: 700,
+        color: tone.c,
+        background: tone.b,
+        padding: "2px 8px",
+        borderRadius: 20,
+      }}
+    >
+      {tone.t}
+    </span>
+  );
 }
 
-function LogTable({ title, subtitle, logs }: { title: string; subtitle: string; logs: AuditLog[] }) {
+function LogTable({
+  title,
+  subtitle,
+  logs,
+  levelLabel,
+}: {
+  title: string;
+  subtitle: string;
+  logs: AuditLog[];
+  levelLabel: (code: string | null) => { text: string; color: string; bg: string };
+}) {
   return (
     <Card style={{ display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 10 }}>
@@ -83,39 +70,65 @@ function LogTable({ title, subtitle, logs }: { title: string; subtitle: string; 
         <span style={{ fontSize: 12, color: "var(--muted)" }}>{subtitle}</span>
       </div>
       {logs.length === 0 ? (
-        <span style={{ fontSize: 12.5, color: "var(--muted)", padding: "12px 0" }}>暂无记录</span>
+        <span style={{ fontSize: 12.5, color: "var(--muted)", padding: "12px 0" }}>
+          暂无记录。所有写操作都会自动留痕在这里。
+        </span>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th style={th}>时间</th>
-              <th style={th}>操作人</th>
-              <th style={th}>操作内容</th>
-              <th style={th}>对象</th>
-              <th style={th}>设备</th>
-              <th style={th}>IP</th>
-              <th style={{ ...th, textAlign: "center" }}>结果</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((l) => (
-              <tr key={l.id} className="row-hover">
-                <td style={{ ...td, color: "var(--muted)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{(l.created_at ?? "").slice(0, 16).replace("T", " ")}</td>
-                <td style={td}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontWeight: 600, color: "#2c322e" }}>{l.actor_name ?? "—"}</span>
-                    <LevelTag level={l.actor_level} />
-                  </span>
-                </td>
-                <td style={{ ...td, color: "#4a514c" }}>{l.detail ?? l.action}</td>
-                <td style={{ ...td, color: "#4a514c" }}>{l.target_name ?? "—"}</td>
-                <td style={{ ...td, color: "var(--muted)", whiteSpace: "nowrap" }}>{l.device ?? "—"}</td>
-                <td style={{ ...td, color: "var(--muted)" }}>{l.ip ?? "—"}</td>
-                <td style={{ ...td, textAlign: "center" }}><ResultTag result={l.result} /></td>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={th}>时间</th>
+                <th style={th}>操作人</th>
+                <th style={th}>操作内容</th>
+                <th style={th}>对象</th>
+                <th style={th}>设备</th>
+                <th style={th}>IP</th>
+                <th style={{ ...th, textAlign: "center" }}>结果</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {logs.map((l) => {
+                const lvl = levelLabel(l.actor_level);
+                return (
+                  <tr key={l.id} className="row-hover">
+                    <td style={{ ...td, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                      {fmtDateTime(l.created_at)}
+                    </td>
+                    <td style={td}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontWeight: 600, color: "#2c322e" }}>{l.actor_name ?? "系统"}</span>
+                        {l.actor_level && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: lvl.color,
+                              background: lvl.bg,
+                              padding: "1px 7px",
+                              borderRadius: 20,
+                            }}
+                          >
+                            {lvl.text}
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td style={{ ...td, color: "#4a514c" }}>{l.detail ?? l.action}</td>
+                    <td style={{ ...td, color: "#4a514c" }}>{l.target_name ?? "—"}</td>
+                    <td style={{ ...td, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                      {l.device ?? "—"}
+                    </td>
+                    <td style={{ ...td, color: "var(--muted)" }}>{l.ip ?? "—"}</td>
+                    <td style={{ ...td, textAlign: "center" }}>
+                      <ResultTag result={l.result} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </Card>
   );
@@ -126,66 +139,89 @@ export default async function SettingsPage({
 }: {
   searchParams: Promise<{ view?: string }>;
 }) {
+  const me = await requireModule("system");
+
   const { view } = await searchParams;
   const item = navItemByKey("settings");
   const active = activeSubView(item, view)?.key ?? "security";
 
-  const opLogs = (await listAuditLogs("operation", 100)) ?? SAMPLE_LOGS.filter((l) => l.category === "operation");
-  const authLogs = (await listAuditLogs("auth", 100)) ?? SAMPLE_LOGS.filter((l) => l.category === "auth");
+  const [settings, dict, policies] = await Promise.all([
+    loadSettings(),
+    loadDict(),
+    loadSecurityPolicies(),
+  ]);
+
+  // 原来这里在数据库不可用时会回落到 3 条带真人姓名的伪造日志。
+  // 现在没有数据就是空态 —— 审计记录绝不能编造。
+  const [opLogs, authLogs] = await Promise.all([
+    listAuditLogs("operation", 100),
+    listAuditLogs("auth", 100),
+  ]);
+
+  const levelLabel = (code: string | null) => {
+    const t = toneOr(dict.maps.admin_level, code, "—");
+    return { text: t.text, color: t.color, bg: t.bg };
+  };
 
   return (
     <>
       <SubTabs item={item} active={active} />
 
-      {active === "security" && <SecurityPolicy />}
+      {active === "security" && (
+        <SecurityPolicy policies={policies} security={settings.security} />
+      )}
 
-      {active === "notify" && (
-        <Panel
-          title="消息通知"
-          subtitle="待办与异常的提醒开关"
-          rows={[
-            { label: "订单异常提醒", sub: "支付 / 风控 / 发货异常", value: <OnValue text="已开启" /> },
-            { label: "库存预警提醒", sub: "低于安全库存时", value: <OnValue text="已开启" /> },
-            { label: "渠道客户跟进提醒", sub: "超 7 天未跟进", value: <OnValue text="已开启" /> },
-            { label: "回款 / 应收提醒", sub: "应收逾期时", value: <OnValue text="已开启" /> },
-            { label: "售后退款提醒", sub: "新退款申请时", value: <span style={{ color: "var(--muted)" }}>仅站内</span> },
-          ]}
+      {active === "notify" && <NotifyPanel rules={await getNotificationRules()} />}
+
+      {active === "approval" && (
+        <ApprovalPanel
+          rules={await listApprovalRules()}
+          requests={(await getApprovalRequests("pending")).filter((r) =>
+            me.level === "L1" ? true : r.required_level !== "L1",
+          )}
         />
       )}
 
+      {active === "rules" && <RulesPanel settings={settings} />}
+
+      {active === "dict" && <DictPanel entries={await listDictEntries()} />}
+
       {active === "logs" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <LogTable title="操作日志" subtitle="重要操作全程留痕" logs={opLogs} />
-          <LogTable title="登录日志" subtitle="登录成功 / 失败 / 退出记录" logs={authLogs} />
+          <LogTable
+            title="操作日志"
+            subtitle="重要操作全程留痕"
+            logs={opLogs ?? []}
+            levelLabel={levelLabel}
+          />
+          <LogTable
+            title="登录日志"
+            subtitle="登录成功 / 失败 / 退出记录"
+            logs={authLogs ?? []}
+            levelLabel={levelLabel}
+          />
           <Card style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <span style={{ fontSize: 13.5, fontWeight: 700 }}>留痕范围</span>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {AUDITED_ACTIONS.map((x) => (
-                <span key={x} style={{ fontSize: 11.5, fontWeight: 600, color: "#4a514c", background: "var(--bg)", border: "1px solid var(--line)", padding: "5px 11px", borderRadius: 7 }}>
+                <span
+                  key={x}
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    color: "#4a514c",
+                    background: "var(--bg)",
+                    border: "1px solid var(--line)",
+                    padding: "5px 11px",
+                    borderRadius: 7,
+                  }}
+                >
                   {x}
                 </span>
               ))}
             </div>
           </Card>
         </div>
-      )}
-
-      {active === "product" && (
-        <ModulePlaceholder
-          icon="box"
-          title="商品设置"
-          description="维护商品分类、计量单位、规格模板与默认税率，统一商品与价格的基础配置。"
-          fields={["商品分类", "计量单位", "规格 / SKU 模板", "默认税率", "价格档位", "条码规则"]}
-        />
-      )}
-
-      {active === "order" && (
-        <ModulePlaceholder
-          icon="bag"
-          title="订单规则"
-          description="配置订单号规则、自动审核条件、超时未支付取消、发货时效与售后政策。"
-          fields={["订单号规则", "自动审核", "超时取消", "发货时效", "拆合单规则", "售后政策"]}
-        />
       )}
     </>
   );

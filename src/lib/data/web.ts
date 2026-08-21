@@ -1,0 +1,519 @@
+import "server-only";
+
+import { cache } from "react";
+import { getDb, num } from "./db";
+import { loadSettings } from "./settings";
+import { businessDateKey, businessDayStart } from "./metrics";
+import type {
+  ChannelSlice,
+  FunnelStep,
+  PageStat,
+  ProductAnalytics,
+  SeriesPoint,
+  WebCity,
+  WebEventCount,
+  WebOverview,
+  WebViewsSummary,
+} from "@/lib/types";
+
+// ---------------------------------------------------------------------------
+// 官网数据。取代 src/lib/mock/web.ts 的 9 组写死数字。
+//
+// 数据来源：网站把埋点 POST 到 /api/analytics/collect → web_events，
+// gy_rollup_web_day() 汇总成 web_analytics_daily / web_page_stats / …。
+// 页面浏览同时上报给 Vercel Web Analytics（<Analytics /> in app/layout.tsx），
+// 那是给运营看的实时看板；本模块是后台可查询、可与订单关联的一方数据。
+// ---------------------------------------------------------------------------
+
+const SOURCE_LABELS: Record<string, string> = {
+  wechat: "微信",
+  xhs: "小红书",
+  direct: "直接访问",
+  search: "搜索引擎",
+  douyin: "抖音",
+  instagram: "Instagram",
+  whatsapp: "WhatsApp",
+  fair: "展会二维码",
+  referral: "转介绍",
+  email: "邮件",
+  other: "其他外链",
+};
+
+const SOURCE_COLORS: Record<string, string> = {
+  wechat: "#2f7d4f",
+  xhs: "#c0392b",
+  direct: "var(--accent)",
+  search: "#2b6cb0",
+  douyin: "#3a403c",
+  instagram: "#8a6fb0",
+  whatsapp: "#1f8a5b",
+  fair: "#b07d18",
+  referral: "#c2703d",
+  email: "#5b6470",
+  other: "#cdd2cb",
+};
+
+const FALLBACK_PALETTE = [
+  "var(--accent)",
+  "#c2703d",
+  "#e0a44a",
+  "#2b6cb0",
+  "#8a6fb0",
+  "#2a9c74",
+  "#c0392b",
+  "#5b6470",
+];
+
+const DEVICE_LABELS: Record<string, string> = {
+  mobile: "手机",
+  desktop: "电脑",
+  tablet: "平板",
+  unknown: "未知",
+};
+
+const DEVICE_COLORS: Record<string, string> = {
+  mobile: "var(--accent)",
+  desktop: "#2b6cb0",
+  tablet: "#e0a44a",
+  unknown: "#cdd2cb",
+};
+
+interface DailyRow {
+  stat_date: string;
+  pv: number;
+  uv: number;
+  sessions: number;
+  new_visitors: number;
+  product_clicks: number;
+  product_views: number;
+  add_cart: number;
+  checkouts: number;
+  orders: number;
+  paid: number;
+  inquiries: number;
+  stay_seconds_total: number;
+  bounce_sessions: number;
+}
+
+async function dateWindow(days: number): Promise<{ from: string; to: string; prevFrom: string }> {
+  const settings = await loadSettings();
+  const tz = settings.analytics.tzOffsetHours;
+  const from = businessDateKey(businessDayStart(tz, days - 1), tz);
+  const to = businessDateKey(businessDayStart(tz, 0), tz);
+  const prevFrom = businessDateKey(businessDayStart(tz, days * 2 - 1), tz);
+  return { from, to, prevFrom };
+}
+
+async function fetchDaily(from: string, to: string): Promise<DailyRow[]> {
+  const sb = await getDb();
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from("web_analytics_daily")
+    .select("*")
+    .gte("stat_date", from)
+    .lte("stat_date", to)
+    .order("stat_date");
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((r) => ({
+    stat_date: String(r.stat_date),
+    pv: num(r.pv),
+    uv: num(r.uv),
+    sessions: num(r.sessions),
+    new_visitors: num(r.new_visitors),
+    product_clicks: num(r.product_clicks),
+    product_views: num(r.product_views),
+    add_cart: num(r.add_cart),
+    checkouts: num(r.checkouts),
+    orders: num(r.orders),
+    paid: num(r.paid),
+    inquiries: num(r.inquiries),
+    stay_seconds_total: num(r.stay_seconds_total),
+    bounce_sessions: num(r.bounce_sessions),
+  }));
+}
+
+function total(rows: DailyRow[], key: keyof DailyRow): number {
+  return rows.reduce((s, r) => s + (typeof r[key] === "number" ? (r[key] as number) : 0), 0);
+}
+
+function pctChange(current: number, previous: number): number | null {
+  if (!previous) return null;
+  return ((current - previous) / previous) * 100;
+}
+
+export const getWebOverview = cache(async (days = 30): Promise<WebOverview> => {
+  const { from, to, prevFrom } = await dateWindow(days);
+  const all = await fetchDaily(prevFrom, to);
+  const rows = all.filter((r) => r.stat_date >= from);
+  const prev = all.filter((r) => r.stat_date < from);
+
+  const pv = total(rows, "pv");
+  const uv = total(rows, "uv");
+  const sessions = total(rows, "sessions");
+  const clicks = total(rows, "product_clicks");
+  const paid = total(rows, "paid");
+  const stay = total(rows, "stay_seconds_total");
+  const bounce = total(rows, "bounce_sessions");
+  const newVisitors = total(rows, "new_visitors");
+
+  return {
+    pv,
+    uv,
+    sessions,
+    newVisitors,
+    productClicks: clicks,
+    addCart: total(rows, "add_cart"),
+    orders: total(rows, "orders"),
+    paid,
+    inquiries: total(rows, "inquiries"),
+    avgStaySeconds: pv ? stay / pv : 0,
+    bounceRate: sessions ? (bounce / sessions) * 100 : 0,
+    pvDelta: pctChange(pv, total(prev, "pv")),
+    uvDelta: pctChange(uv, total(prev, "uv")),
+    ctr: pv ? (clicks / pv) * 100 : 0,
+    convRate: uv ? (paid / uv) * 100 : 0,
+    newRate: uv ? (newVisitors / uv) * 100 : 0,
+  };
+});
+
+export const getWebViews = cache(async (): Promise<WebViewsSummary> => {
+  const sb = await getDb();
+  const settings = await loadSettings();
+  const tz = settings.analytics.tzOffsetHours;
+  const empty: WebViewsSummary = {
+    pvToday: 0,
+    uvToday: 0,
+    pvTodayDelta: null,
+    pvMonth: 0,
+    uvMonth: 0,
+    pvMonthDelta: null,
+    pvTotal: 0,
+    uvTotal: 0,
+    since: null,
+  };
+  if (!sb) return empty;
+
+  const today = businessDateKey(businessDayStart(tz, 0), tz);
+  const yesterday = businessDateKey(businessDayStart(tz, 1), tz);
+  const monthFrom = businessDateKey(businessDayStart(tz, 29), tz);
+  const prevMonthFrom = businessDateKey(businessDayStart(tz, 59), tz);
+
+  const [{ data: recent }, { data: allRows }] = await Promise.all([
+    sb
+      .from("web_analytics_daily")
+      .select("stat_date,pv,uv")
+      .gte("stat_date", prevMonthFrom)
+      .order("stat_date"),
+    sb.from("web_analytics_daily").select("stat_date,pv,uv").order("stat_date"),
+  ]);
+
+  const rows = ((recent ?? []) as Record<string, unknown>[]).map((r) => ({
+    d: String(r.stat_date),
+    pv: num(r.pv),
+    uv: num(r.uv),
+  }));
+  const every = ((allRows ?? []) as Record<string, unknown>[]).map((r) => ({
+    d: String(r.stat_date),
+    pv: num(r.pv),
+    uv: num(r.uv),
+  }));
+
+  const pick = (from: string, toExclusive?: string) =>
+    rows.filter((r) => r.d >= from && (!toExclusive || r.d < toExclusive));
+
+  const todayRow = rows.find((r) => r.d === today);
+  const yRow = rows.find((r) => r.d === yesterday);
+  const month = pick(monthFrom);
+  const prevMonth = pick(prevMonthFrom, monthFrom);
+
+  return {
+    pvToday: todayRow?.pv ?? 0,
+    uvToday: todayRow?.uv ?? 0,
+    pvTodayDelta: pctChange(todayRow?.pv ?? 0, yRow?.pv ?? 0),
+    pvMonth: month.reduce((s, r) => s + r.pv, 0),
+    uvMonth: month.reduce((s, r) => s + r.uv, 0),
+    pvMonthDelta: pctChange(
+      month.reduce((s, r) => s + r.pv, 0),
+      prevMonth.reduce((s, r) => s + r.pv, 0),
+    ),
+    pvTotal: every.reduce((s, r) => s + r.pv, 0),
+    uvTotal: every.reduce((s, r) => s + r.uv, 0),
+    since: every[0]?.d ?? null,
+  };
+});
+
+export async function getWebTrend(
+  metric: "pv" | "uv" | "product_clicks" | "inquiries" | "paid",
+  days: number,
+): Promise<SeriesPoint[]> {
+  const settings = await loadSettings();
+  const tz = settings.analytics.tzOffsetHours;
+  const from = businessDateKey(businessDayStart(tz, days - 1), tz);
+  const to = businessDateKey(businessDayStart(tz, 0), tz);
+  const rows = await fetchDaily(from, to);
+  const byDate = new Map(rows.map((r) => [r.stat_date, r]));
+
+  const out: SeriesPoint[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const key = businessDateKey(businessDayStart(tz, i), tz);
+    const [, m, d] = key.split("-");
+    const row = byDate.get(key);
+    out.push({
+      date: key,
+      label: `${Number(m)}/${Number(d)}`,
+      value: row ? num(row[metric]) : 0,
+    });
+  }
+  return out;
+}
+
+export const getProductAnalytics = cache(async (days = 30): Promise<ProductAnalytics[]> => {
+  const sb = await getDb();
+  if (!sb) return [];
+  const { from, to } = await dateWindow(days);
+  const [{ data: stats }, { data: products }] = await Promise.all([
+    sb
+      .from("web_product_stats")
+      .select("*")
+      .gte("stat_date", from)
+      .lte("stat_date", to),
+    sb.from("products").select("id,name"),
+  ]);
+  const names = new Map(
+    ((products ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]),
+  );
+
+  const agg = new Map<string, ProductAnalytics>();
+  for (const r of (stats ?? []) as Record<string, unknown>[]) {
+    const id = String(r.product_id);
+    const cur =
+      agg.get(id) ??
+      {
+        id,
+        name: names.get(id) ?? id,
+        impressions: 0,
+        clicks: 0,
+        views: 0,
+        add_cart: 0,
+        orders: 0,
+        paid: 0,
+      };
+    cur.impressions += num(r.impressions);
+    cur.clicks += num(r.clicks);
+    cur.views += num(r.views);
+    cur.add_cart += num(r.add_cart);
+    cur.orders += num(r.orders);
+    cur.paid += num(r.paid);
+    agg.set(id, cur);
+  }
+  return [...agg.values()].sort((a, b) => b.clicks - a.clicks);
+});
+
+export const getPageStats = cache(async (days = 30): Promise<PageStat[]> => {
+  const sb = await getDb();
+  if (!sb) return [];
+  const { from, to } = await dateWindow(days);
+  const { data } = await sb
+    .from("web_page_stats")
+    .select("*")
+    .gte("stat_date", from)
+    .lte("stat_date", to);
+
+  const agg = new Map<
+    string,
+    { page: string; pv: number; uv: number; stay: number; bounce: number; sessions: number }
+  >();
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const path = String(r.page_path);
+    const cur =
+      agg.get(path) ??
+      { page: String(r.page_title ?? path), pv: 0, uv: 0, stay: 0, bounce: 0, sessions: 0 };
+    cur.pv += num(r.pv);
+    cur.uv += num(r.uv);
+    cur.stay += num(r.stay_seconds_total);
+    cur.bounce += num(r.bounce_sessions);
+    cur.sessions += num(r.sessions);
+    agg.set(path, cur);
+  }
+  return [...agg.values()]
+    .sort((a, b) => b.pv - a.pv)
+    .map((r) => ({
+      page: r.page,
+      pv: r.pv,
+      uv: r.uv,
+      avg_stay_seconds: r.pv ? r.stay / r.pv : 0,
+      bounce: r.sessions ? (r.bounce / r.sessions) * 100 : 0,
+    }));
+});
+
+export const getTrafficSources = cache(async (days = 30): Promise<ChannelSlice[]> => {
+  const sb = await getDb();
+  if (!sb) return [];
+  const { from, to } = await dateWindow(days);
+  const { data } = await sb
+    .from("web_traffic_sources")
+    .select("source_key,visitors")
+    .gte("stat_date", from)
+    .lte("stat_date", to);
+
+  const agg = new Map<string, number>();
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const k = String(r.source_key);
+    agg.set(k, (agg.get(k) ?? 0) + num(r.visitors));
+  }
+  return [...agg.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, val], i) => ({
+      label: SOURCE_LABELS[key] ?? key,
+      val,
+      color: SOURCE_COLORS[key] ?? FALLBACK_PALETTE[i % FALLBACK_PALETTE.length],
+    }));
+});
+
+export const getDeviceSplit = cache(async (days = 30): Promise<ChannelSlice[]> => {
+  const sb = await getDb();
+  if (!sb) return [];
+  const { from, to } = await dateWindow(days);
+  const { data } = await sb
+    .from("web_device_stats")
+    .select("device,visitors")
+    .gte("stat_date", from)
+    .lte("stat_date", to);
+
+  const agg = new Map<string, number>();
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const k = String(r.device);
+    agg.set(k, (agg.get(k) ?? 0) + num(r.visitors));
+  }
+  return [...agg.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, val], i) => ({
+      label: DEVICE_LABELS[key] ?? key,
+      val,
+      color: DEVICE_COLORS[key] ?? FALLBACK_PALETTE[i % FALLBACK_PALETTE.length],
+    }));
+});
+
+export const getWebCities = cache(async (days = 30, limit = 8): Promise<WebCity[]> => {
+  const sb = await getDb();
+  if (!sb) return [];
+  const { from, to } = await dateWindow(days);
+  const { data } = await sb
+    .from("web_region_stats")
+    .select("region_key,visitors,clicks,orders")
+    .eq("region_type", "city")
+    .gte("stat_date", from)
+    .lte("stat_date", to);
+
+  const agg = new Map<string, WebCity>();
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const k = String(r.region_key);
+    const cur = agg.get(k) ?? { name: k, visitors: 0, clicks: 0, orders: 0 };
+    cur.visitors += num(r.visitors);
+    cur.clicks += num(r.clicks);
+    cur.orders += num(r.orders);
+    agg.set(k, cur);
+  }
+  return [...agg.values()].sort((a, b) => b.visitors - a.visitors).slice(0, limit);
+});
+
+export const getOverallFunnel = cache(async (days = 30): Promise<FunnelStep[]> => {
+  const o = await getWebOverview(days);
+  const steps: FunnelStep[] = [
+    { label: "访问官网", count: o.pv },
+    { label: "点击产品", count: o.productClicks },
+    { label: "加入购物车", count: o.addCart },
+    { label: "提交订单", count: o.orders },
+    { label: "支付成功", count: o.paid },
+  ];
+  return steps.some((s) => s.count > 0) ? steps : [];
+});
+
+export const getEventCounts = cache(async (days = 30): Promise<WebEventCount[]> => {
+  const sb = await getDb();
+  if (!sb) return [];
+  const settings = await loadSettings();
+  const since = businessDayStart(settings.analytics.tzOffsetHours, days - 1);
+
+  const [{ data: types }, { data: events }] = await Promise.all([
+    sb.from("web_event_types").select("event_key,name,sort").order("sort"),
+    sb
+      .from("web_events")
+      .select("event_key")
+      .gte("occurred_at", since.toISOString())
+      .limit(100000),
+  ]);
+
+  const counts = new Map<string, number>();
+  for (const e of (events ?? []) as { event_key: string }[]) {
+    counts.set(e.event_key, (counts.get(e.event_key) ?? 0) + 1);
+  }
+
+  const known = ((types ?? []) as { event_key: string; name: string }[]).map((t) => ({
+    event_key: t.event_key,
+    name: t.name,
+    count: counts.get(t.event_key) ?? 0,
+  }));
+  // 字典里没登记的事件也要显示，否则新埋点会静默消失。
+  for (const [key, count] of counts) {
+    if (!known.some((k) => k.event_key === key)) {
+      known.push({ event_key: key, name: key, count });
+    }
+  }
+  return known.filter((k) => k.count > 0);
+});
+
+/**
+ * 单品官网详情：漏斗数据 + 真实平均停留 + 真实销售额。
+ *
+ * 原来「平均停留 2分36秒」对 5 个产品显示同一个写死的值（ProductAnalytics 类型里
+ * 根本没有这个字段），「估算销售额」= 支付数 × 写死的客单价 210。
+ */
+export async function getProductWebDetail(
+  productId: string,
+  days = 30,
+): Promise<{
+  analytics: ProductAnalytics | null;
+  avgStaySeconds: number | null;
+  revenue: number;
+  units: number;
+} | null> {
+  const sb = await getDb();
+  if (!sb) return null;
+
+  const all = await getProductAnalytics(days);
+  const analytics = all.find((p) => p.id === productId) ?? null;
+
+  const settings = await loadSettings();
+  const since = businessDayStart(settings.analytics.tzOffsetHours, days - 1).toISOString();
+
+  const [{ data: stayRows }, { data: itemRows }] = await Promise.all([
+    sb
+      .from("web_events")
+      .select("value")
+      .eq("product_id", productId)
+      .eq("event_key", "page_leave")
+      .gte("occurred_at", since),
+    sb
+      .from("order_items")
+      .select("qty,price,orders!inner(created_at,pay_status)")
+      .eq("product_id", productId)
+      .gte("orders.created_at", since),
+  ]);
+
+  const stays = ((stayRows ?? []) as { value: unknown }[])
+    .map((r) => num(r.value))
+    .filter((v) => v > 0);
+  const avgStaySeconds = stays.length ? stays.reduce((s, v) => s + v, 0) / stays.length : null;
+
+  let revenue = 0;
+  let units = 0;
+  for (const r of (itemRows ?? []) as Record<string, unknown>[]) {
+    const order = r.orders as { pay_status?: string } | null;
+    if (!order || !["paid", "partial_refund"].includes(String(order.pay_status))) continue;
+    revenue += num(r.qty) * num(r.price);
+    units += num(r.qty);
+  }
+
+  return { analytics, avgStaySeconds, revenue, units };
+}

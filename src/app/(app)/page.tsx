@@ -7,42 +7,96 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { RecentOrders } from "@/components/dashboard/RecentOrders";
 import { WebViews } from "@/components/dashboard/WebViews";
 import { getRecentOrders } from "@/lib/data/queries";
+import {
+  getAlerts,
+  getPipeline,
+  getRecentActivity,
+  getTodayStats,
+  getTrendSeries,
+} from "@/lib/data/metrics";
+import { getWebViews } from "@/lib/data/web";
+import { loadSettings } from "@/lib/data/settings";
+import { fetchTrendSeriesAction } from "@/lib/actions/series";
+import { fmtCurrency, fmtNumber } from "@/lib/tokens";
+import type { Range } from "@/lib/charts";
+import type { IconName } from "@/components/ui/Icon";
 
-// Dynamic so the search-param-aware sidebar renders fully on the server here too
-// (every other route is already dynamic via its `view` param).
+// 每次请求实时聚合。数据层用到 cookies()，本来就无法静态化。
 export const dynamic = "force-dynamic";
 
-// 首页是"任务入口"，不是纯数据展示页：今日要处理什么、待办、快捷操作。
-const todayStats: Stat[] = [
-  { label: "今日销售额", value: "¥86,400", sub: "较昨日 +6.2%", icon: "dollar", iconColor: "var(--accent)", iconBg: "var(--accent-soft)" },
-  { label: "今日订单", value: "142", sub: "已支付 128", icon: "bag", iconColor: "#c2703d", iconBg: "#fff5ec" },
-  { label: "待发货", value: "128", sub: "含 8 单超时", icon: "truck", iconColor: "#b45309", iconBg: "#fff7ec", valueColor: "#b45309" },
-  { label: "待跟进客户", value: "3", sub: "超 7 天未跟进", icon: "clock", iconColor: "#b45309", iconBg: "#fff7ec", valueColor: "#b45309" },
-  { label: "库存预警", value: "4", sub: "低于安全线 SKU", icon: "alert", iconColor: "#c0392b", iconBg: "#fdf0ef", valueColor: "#c0392b" },
-  { label: "待回款", value: "¥127,600", sub: "应收逾期 2 笔", icon: "cash", iconColor: "#c0392b", iconBg: "#fdf0ef", valueColor: "#c0392b" },
-];
+// 首页是「任务入口」，不是纯数据展示页：今天要处理什么、待办、快捷操作。
+//
+// 这一整屏原来是 6 个字符串常量 + 一个伪随机趋势图 + 5 条伪造的操作流水。
+// 现在每个数字都来自 src/lib/data/metrics.ts 的真实聚合，并且互相一致
+// （首页「待发货」= 侧边栏徽标 = 业务流程条上的同名环节）。
+
+const TONE_STYLE: Record<
+  string,
+  { icon: IconName; color: string; bg: string; alertColor: string }
+> = {
+  accent: { icon: "dollar", color: "var(--accent)", bg: "var(--accent-soft)", alertColor: "var(--accent)" },
+  clay: { icon: "bag", color: "#c2703d", bg: "#fff5ec", alertColor: "#c2703d" },
+  amber: { icon: "truck", color: "#b45309", bg: "#fff7ec", alertColor: "#b45309" },
+  red: { icon: "alert", color: "#c0392b", bg: "#fdf0ef", alertColor: "#c0392b" },
+  blue: { icon: "barChart", color: "#2b6cb0", bg: "#eef4ff", alertColor: "#2b6cb0" },
+};
 
 export default async function DashboardPage() {
-  const orders = await getRecentOrders(6);
+  const settings = await loadSettings();
+  const defaultRange = String(settings.analytics.defaultRangeDays) as Range;
+
+  const [todayStats, alerts, pipeline, activity, webViews, orders, series] = await Promise.all([
+    getTodayStats(),
+    getAlerts(),
+    getPipeline(),
+    getRecentActivity(5),
+    getWebViews(),
+    getRecentOrders(settings.orders.recentLimit),
+    getTrendSeries("sales", defaultRange),
+  ]);
+
+  const stats: Stat[] = todayStats.map((s) => {
+    const tone = TONE_STYLE[s.tone] ?? TONE_STYLE.accent;
+    return {
+      label: s.label,
+      value: s.format === "currency" ? fmtCurrency(s.value) : fmtNumber(s.value),
+      sub: s.sub,
+      icon: (s.icon as IconName) ?? tone.icon,
+      iconColor: tone.color,
+      iconBg: tone.bg,
+      // 颜色由阈值判断决定，不再对每张卡写死一个红色。
+      valueColor: s.alert ? tone.alertColor : undefined,
+      href: s.href,
+    };
+  });
 
   return (
     <>
-      <StatStrip stats={todayStats} columns={6} />
+      <StatStrip
+        stats={stats}
+        columns={6}
+        empty="数据库中还没有业务数据。导入 supabase/seed_samples.sql 可以先看到示例，或直接开始录入真实订单。"
+      />
 
       <div style={{ marginBottom: 16 }}>
-        <WebViews compact />
+        <WebViews data={webViews} compact />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
-        <Alerts />
+        <Alerts alerts={alerts} />
         <QuickActions />
       </div>
 
-      <Pipeline />
+      <Pipeline stages={pipeline} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1.85fr 1fr", gap: 16, marginTop: 16 }}>
-        <TrendChart defaultRange="7" />
-        <RecentActivity />
+        <TrendChart
+          initialSeries={series}
+          initialMetric="sales"
+          initialRange={defaultRange}
+          fetchSeries={fetchTrendSeriesAction}
+        />
+        <RecentActivity rows={activity} />
       </div>
 
       <RecentOrders orders={orders} />

@@ -18,22 +18,24 @@ import type { Admin, AdminGrant, AdminLevel, AdminStatus, DataScope } from "@/li
 // was force-logged-out (epoch bumped), so the session is rejected immediately.
 export const EPOCH_COOKIE = "gy-epoch";
 
-// Stand-in identity used when Supabase auth isn't configured (demo mode), so the
-// existing dashboard still renders for preview/build without a database.
-export const DEMO_ADMIN: Admin = {
-  id: "demo-super",
-  name: "演示管理员",
-  phone: "138 0000 0000",
-  email: "demo@guiye.com",
-  level: "L1",
-  role: "超级管理员",
-  dept: "管理层",
-  scope: "all",
-  scope_label: "全部数据",
-  status: "active",
-  last_login: "演示模式",
-  session_epoch: 0,
-};
+// 注意：这里曾经有一个 DEMO_ADMIN 常量 —— 环境变量缺失时它会把访客直接变成
+// 「演示管理员 / L1 / scope:all」的超级管理员，proxy.ts 也一并短路。
+// 生产环境一次配置失误就等于开放一个无鉴权的超管入口，因此已彻底移除：
+// 配置缺失 = 拒绝服务，而不是降级放行。
+
+/** 系统是否已完成配置。未配置时任何人都无法进入控制台。 */
+export function isSystemConfigured(): boolean {
+  return isAuthConfigured;
+}
+
+/** 缺失的环境变量名，登录页用来提示部署者（不泄露任何取值）。 */
+export function missingEnvVars(): string[] {
+  const missing: string[] = [];
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+  return missing;
+}
 
 // Allowed to enter the console. Everything else (pending/suspended/locked/
 // resigned/closed) is denied at login and on every subsequent request.
@@ -48,12 +50,13 @@ function statusAllowsAccess(admin: Admin): boolean {
 
 // Resolve the current admin from the Supabase session. `cache` dedupes it across
 // the layout + page + data layer within a single request. Returns null when there
-// is no valid, active, non-force-logged-out session.
+// is no valid, active, non-force-logged-out session — or when the project isn't
+// configured at all.
 export const getCurrentAdmin = cache(async (): Promise<Admin | null> => {
-  if (!isAuthConfigured) return DEMO_ADMIN;
+  if (!isAuthConfigured) return null;
 
   const sb = await getSupabaseServer();
-  if (!sb) return DEMO_ADMIN;
+  if (!sb) return null;
 
   const {
     data: { user },
@@ -78,8 +81,29 @@ export async function requireAdmin(): Promise<Admin> {
   return admin;
 }
 
-export function isDemoMode(): boolean {
-  return !isAuthConfigured;
+/**
+ * Server-side gate for a module. Use at the top of every page under (app) that
+ * isn't universally visible — the sidebar hiding a link is UX, not authorization.
+ */
+export async function requireModule(moduleKey: string): Promise<Admin> {
+  const admin = await requireAdmin();
+  const { canViewModule } = await import("./permissions");
+  if (!canViewModule(admin, moduleKey)) redirect("/?denied=" + encodeURIComponent(moduleKey));
+  return admin;
+}
+
+/**
+ * Assert a specific action, for Server Actions. Throws (caught by the action and
+ * returned as an error message) rather than redirecting.
+ */
+export async function assertCan(moduleKey: string, action: string): Promise<Admin> {
+  const admin = await getCurrentAdmin();
+  if (!admin) throw new Error("未登录或会话已失效");
+  const { can } = await import("./permissions");
+  if (!can(admin, moduleKey, action)) {
+    throw new Error(`没有「${action}」权限`);
+  }
+  return admin;
 }
 
 // ---- Client-safe viewer ----
@@ -98,10 +122,11 @@ export interface Viewer {
   visibleNav: string[];
   canManageAdmins: boolean;
   grants: Record<string, AdminGrant>;
-  isDemo: boolean;
+  /** 是否可以看到完整手机号 / 邮箱（由 security.mask_phone_min_level 决定） */
+  canSeeFullContact: boolean;
 }
 
-export function viewerFor(admin: Admin): Viewer {
+export function viewerFor(admin: Admin, canSeeFullContact = false): Viewer {
   return {
     id: admin.id,
     name: admin.name,
@@ -115,6 +140,6 @@ export function viewerFor(admin: Admin): Viewer {
     visibleNav: visibleNavKeys(admin),
     canManageAdmins: canManageAdmins(admin),
     grants: effectiveGrants(admin),
-    isDemo: isDemoMode(),
+    canSeeFullContact,
   };
 }

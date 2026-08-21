@@ -12,8 +12,9 @@ import {
 } from "@/lib/nav";
 import { Icon } from "@/components/ui/Icon";
 import { useViewer } from "./AdminProvider";
+import { useDict } from "./DictProvider";
 import { signOutAction } from "@/lib/auth/actions";
-import { ADMIN_LEVEL } from "@/lib/tokens";
+import { initial } from "@/lib/tokens";
 
 function Badge({ tone, text }: { tone: "accent" | "red"; text: string }) {
   return (
@@ -40,12 +41,14 @@ function NavRow({
   expanded,
   onToggle,
   activeChildKey,
+  badgeCount,
 }: {
   item: NavItem;
   active: boolean;
   expanded: boolean;
   onToggle: () => void;
   activeChildKey?: string;
+  badgeCount?: number;
 }) {
   const [hover, setHover] = useState(false);
   const hasChildren = !!item.children?.length;
@@ -85,7 +88,10 @@ function NavRow({
           <Icon name={item.icon} size={17} />
           <span style={{ whiteSpace: "nowrap" }}>{item.label}</span>
         </Link>
-        {item.badge && <Badge tone={item.badge.tone} text={item.badge.text} />}
+        {/* 计数为 0 时不显示徽标 —— 没有待办就不该有一个红点。 */}
+        {badgeCount ? (
+          <Badge tone={item.badgeTone ?? "accent"} text={String(badgeCount)} />
+        ) : null}
         {hasChildren && (
           <button
             aria-label={expanded ? "收起" : "展开"}
@@ -187,13 +193,14 @@ function SubRow({
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ badges = {} }: { badges?: Record<string, number> }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const view = searchParams.get("view");
   const activeItem = navMetaForPath(pathname);
   const activeKey = activeItem.key;
   const viewer = useViewer();
+  const dict = useDict();
 
   // Only show modules the current admin is allowed to access. Server-side checks
   // still gate every page & action — this is menu-level UX filtering.
@@ -275,6 +282,7 @@ export function Sidebar() {
                 expanded={isOpen(item)}
                 onToggle={() => setOpen((s) => ({ ...s, [item.key]: !isOpen(item) }))}
                 activeChildKey={activeChild?.key}
+                badgeCount={item.badgeKey ? badges[item.badgeKey] : undefined}
               />
             );
           })}
@@ -308,7 +316,7 @@ export function Sidebar() {
             flex: "none",
           }}
         >
-          {viewer.name[0]}
+          {initial(viewer.name)}
         </div>
         <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2, minWidth: 0 }}>
           <span
@@ -324,8 +332,7 @@ export function Sidebar() {
             {viewer.name}
           </span>
           <span style={{ color: "#727872", fontSize: 10.5 }}>
-            {ADMIN_LEVEL[viewer.level].text} · {viewer.role}
-            {viewer.isDemo ? " · 演示" : ""}
+            {dict.label("admin_level", viewer.level)} · {viewer.role}
           </span>
         </div>
         <form action={signOutAction} style={{ marginLeft: "auto", flex: "none", display: "flex" }}>
