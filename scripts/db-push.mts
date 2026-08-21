@@ -44,12 +44,19 @@ async function run(sql: string) {
   });
   const text = await res.text();
   if (!res.ok) {
-    // 403 here is ambiguous: it can be the egress policy refusing the CONNECT,
-    // or Supabase refusing the token. Say which, so the fix is obvious.
+    // A 403 here is ambiguous by status alone — the egress proxy denying the host
+    // looks the same as Supabase rejecting the token. The proxy marks its own
+    // denials, so say which one it is instead of making the reader guess.
+    const deny = res.headers.get("x-deny-reason");
+    if (deny) {
+      throw new Error(
+        `出网被拦（${deny}）——不是令牌问题。\n` +
+          "  → Claude 环境 Network access 改 Custom，加入 api.supabase.com",
+      );
+    }
     const hint =
-      res.status === 403
-        ? "\n  → 若是出网被拦：Claude 环境 Network access 改 Custom 并加 api.supabase.com\n" +
-          "    若是令牌问题：确认 PAT 未过期且对该项目有权限"
+      res.status === 401 || res.status === 403
+        ? "\n  → 确认 PAT 未过期、且对该项目有权限"
         : "";
     throw new Error(`HTTP ${res.status} ${text.slice(0, 400)}${hint}`);
   }

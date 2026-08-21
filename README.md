@@ -41,7 +41,7 @@ npm run env:check:local      # 自检：变量 / 出网 / 令牌是否就绪
 ```
 
 > 在 Claude Cloud 容器里跑：先读 [`docs/cloud-container.md`](docs/cloud-container.md)。
-> 默认网络策略不放行 Vercel / Supabase，不改的话所有请求都是 403。
+> 默认网络策略不放行 Supabase，不改的话所有请求都是 403。
 
 未填写 Supabase 变量时，应用使用 `src/lib/mock/data.ts` 中的示例数据（与设计稿数值一致）。
 
@@ -195,7 +195,7 @@ scripts/
   db-push.mts               # 迁移经 Management API 应用（npm run db:push）
   cloud-setup.sh            # Claude Cloud 环境的 Setup script
 docs/
-  cloud-container.md        # 容器内操控 Vercel / Supabase / GitHub 的完整说明
+  cloud-container.md        # 容器内读写 Supabase + 推 git 的完整说明
 design-reference/           # 原始 Claude Design 导出件（设计稿 + 对话记录）
 ```
 

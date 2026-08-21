@@ -46,40 +46,30 @@ function mask(v: string) {
   return `${v.slice(0, 6)}…${v.slice(-4)}（${v.length} 字符）`;
 }
 
-// The egress proxy answers a denied CONNECT with 403, and undici surfaces that
-// as an ordinary 403 response — indistinguishable by status from an API rejecting
-// a bad token. Getting this wrong reports a blocked host as "reachable", which is
-// worse than not checking, so ask the proxy which hosts it actually refused.
-const proxyBase = process.env.HTTPS_PROXY ?? process.env.https_proxy ?? "";
-const refused = new Set<string>();
-
-async function loadProxyDenials() {
-  if (!proxyBase) return;
-  try {
-    const res = await fetch(new URL("/__agentproxy/status", proxyBase), {
-      signal: AbortSignal.timeout(5_000),
-    });
-    const body = (await res.json()) as { recentRelayFailures?: { host?: string }[] };
-    for (const f of body.recentRelayFailures ?? []) {
-      if (f.host) refused.add(f.host.replace(/:\d+$/, ""));
-    }
-  } catch {
-    // No proxy status endpoint (running outside a cloud container) — fall back
-    // to treating 403 as an API-level answer.
-  }
-}
-
+// The egress proxy answers a denied host with 403, and undici surfaces that as an
+// ordinary 403 response — by status alone it is indistinguishable from an API
+// rejecting a bad token. Reporting a blocked host as "reachable" is worse than
+// not checking at all, so key on the proxy's own marker: it stamps
+// `x-deny-reason: host_not_allowed` and a text/plain body on every denial.
+//
+// (The proxy also exposes /__agentproxy/status, but its recentRelayFailures list
+// is a rolling window — a denial ages out of it and the check silently passes.)
 type Probe =
   | { reached: true; status: number }
   | { reached: false; why: string };
 
 async function probe(url: string, headers: Record<string, string> = {}): Promise<Probe> {
-  const host = new URL(url).host;
   try {
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(20_000) });
-    await loadProxyDenials();
-    if (res.status === 403 && refused.has(host)) {
-      return { reached: false, why: "出网被拦（代理拒绝 CONNECT），不是令牌问题" };
+    const deny = res.headers.get("x-deny-reason");
+    if (deny) return { reached: false, why: `出网被拦（${deny}）— 不是令牌问题` };
+    // Fallback in case the header is ever dropped: a real API answers JSON, the
+    // proxy answers plain text.
+    if (res.status === 403 && res.headers.get("content-type")?.startsWith("text/plain")) {
+      const body = await res.text();
+      if (/allowlist|egress/i.test(body)) {
+        return { reached: false, why: `出网被拦 — ${body.slice(0, 80)}` };
+      }
     }
     return { reached: true, status: res.status };
   } catch (e) {
@@ -136,13 +126,26 @@ if (sbUrl && !sbUrl.includes("your-project-ref")) {
 }
 
 await checkApi("api.supabase.com", "https://api.supabase.com/v1/projects", process.env.SUPABASE_ACCESS_TOKEN);
-await checkApi("api.vercel.com", "https://api.vercel.com/v2/user", process.env.VERCEL_TOKEN);
 
 // ---------------------------------------------------------------------------
-console.log("\n\x1b[1m3. 控制面配置（要容器自己发布时才需要）\x1b[0m");
-report("optional", Boolean(process.env.VERCEL_ORG_ID), "VERCEL_ORG_ID", process.env.VERCEL_ORG_ID ?? "未设置");
-report("optional", Boolean(process.env.VERCEL_PROJECT_ID), "VERCEL_PROJECT_ID", process.env.VERCEL_PROJECT_ID ?? "未设置");
-report("optional", Boolean(process.env.SUPABASE_PROJECT_ID), "SUPABASE_PROJECT_ID", process.env.SUPABASE_PROJECT_ID ?? "未设置");
+console.log("\n\x1b[1m3. 写权限（RLS 只有 select 策略，anon key 写不了任何表）\x1b[0m");
+report(
+  "optional",
+  Boolean(process.env.SUPABASE_PROJECT_ID),
+  "SUPABASE_PROJECT_ID",
+  process.env.SUPABASE_PROJECT_ID ?? "未设置 — npm run db:push 需要",
+);
+report(
+  "optional",
+  Boolean(process.env.SUPABASE_ACCESS_TOKEN),
+  "SUPABASE_ACCESS_TOKEN",
+  process.env.SUPABASE_ACCESS_TOKEN ? "已设 — 可跑迁移" : "未设置 — 不能跑迁移",
+);
+console.log(
+  serviceKey
+    ? "  \x1b[32m→\x1b[0m 数据面可读写（service_role 绕过 RLS）"
+    : "  \x1b[33m→\x1b[0m 数据面只读；要写库需 SUPABASE_SERVICE_ROLE_KEY",
+);
 
 const ghToken = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? "";
 report(
