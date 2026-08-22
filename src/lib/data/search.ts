@@ -8,8 +8,7 @@ import "server-only";
 // 搜索在服务端用 PostgREST 的 ilike 完成（而不是把整表拉回来再 filter），
 // 每类结果最多 20 条，并且严格受调用者的模块权限限制。
 
-import { getDb } from "./db";
-import { num } from "./db";
+import { getDb, num } from "./db";
 import { canViewModule } from "@/lib/auth/permissions";
 import type { Admin } from "@/lib/types";
 
@@ -37,6 +36,22 @@ function sanitize(q: string): string {
 
 const LIMIT = 20;
 
+/**
+ * PostgREST 的错误必须打出来。
+ * 之前这里直接 `data ?? []`，结果 select 里写错一个列名（orders.channel，
+ * 实际叫 order_channel）时整类结果静默变成 0 条，界面上看起来只是「没搜到」。
+ */
+function rows(
+  label: string,
+  res: { data: unknown[] | null; error: { message: string } | null },
+): Record<string, unknown>[] {
+  if (res.error) {
+    console.error(`[search] ${label} 查询失败：${res.error.message}`);
+    return [];
+  }
+  return (res.data ?? []) as Record<string, unknown>[];
+}
+
 export async function searchAll(rawQ: string, me: Admin): Promise<SearchResults> {
   const q = sanitize(rawQ).slice(0, 60);
   const empty: SearchResults = { q, groups: [], total: 0, skipped: [] };
@@ -51,20 +66,19 @@ export async function searchAll(rawQ: string, me: Admin): Promise<SearchResults>
 
   // ---- 订单 ----
   if (canViewModule(me, "orders")) {
-    const { data } = await sb
+    const res = await sb
       .from("orders")
-      .select("id,order_no,customer_name,channel,status,amount,currency,created_at")
+      .select("id,order_no,customer_name,order_channel,status,amount,currency,created_at")
       .or(`order_no.ilike.${like},customer_name.ilike.${like}`)
       .order("created_at", { ascending: false })
       .limit(LIMIT);
-    const hits = (data ?? []).map((o) => {
-      const r = o as unknown as Record<string, unknown>;
+    const hits = rows("订单", res).map((r) => {
       return {
         kind: "order" as const,
         id: String(r.id),
         title: String(r.order_no ?? ""),
         subtitle: String(r.customer_name ?? "—"),
-        meta: `${String(r.currency ?? "CNY")} ${num(r.amount).toLocaleString()} · ${String(r.channel ?? "")}`,
+        meta: `${String(r.currency ?? "CNY")} ${num(r.amount).toLocaleString()} · ${String(r.order_channel ?? "")}`,
         href: `/orders/${encodeURIComponent(String(r.order_no ?? ""))}`,
       };
     });
@@ -75,14 +89,13 @@ export async function searchAll(rawQ: string, me: Admin): Promise<SearchResults>
 
   // ---- 客户 ----
   if (canViewModule(me, "crm")) {
-    const { data } = await sb
+    const res = await sb
       .from("customers")
       .select("id,name,phone,email,city,type,orders_count,total_spent")
       .or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like},city.ilike.${like}`)
       .is("deleted_at", null)
       .limit(LIMIT);
-    const hits = (data ?? []).map((c) => {
-      const r = c as unknown as Record<string, unknown>;
+    const hits = rows("客户", res).map((r) => {
       return {
         kind: "customer" as const,
         id: String(r.id),
@@ -99,13 +112,12 @@ export async function searchAll(rawQ: string, me: Admin): Promise<SearchResults>
 
   // ---- 商品 ----
   if (canViewModule(me, "inventory")) {
-    const { data } = await sb
+    const res = await sb
       .from("products")
       .select("id,sku_code,name,category,spec,price,status")
       .or(`sku_code.ilike.${like},name.ilike.${like},category.ilike.${like}`)
       .limit(LIMIT);
-    const hits = (data ?? []).map((p) => {
-      const r = p as unknown as Record<string, unknown>;
+    const hits = rows("商品", res).map((r) => {
       return {
         kind: "product" as const,
         id: String(r.id),
@@ -122,13 +134,12 @@ export async function searchAll(rawQ: string, me: Admin): Promise<SearchResults>
 
   // ---- 运单 ----
   if (canViewModule(me, "logistics")) {
-    const { data } = await sb
+    const res = await sb
       .from("shipments")
       .select("id,tracking_no,order_no,carrier,status,destination")
       .or(`tracking_no.ilike.${like},order_no.ilike.${like}`)
       .limit(LIMIT);
-    const hits = (data ?? []).map((s) => {
-      const r = s as unknown as Record<string, unknown>;
+    const hits = rows("运单", res).map((r) => {
       return {
         kind: "shipment" as const,
         id: String(r.id),

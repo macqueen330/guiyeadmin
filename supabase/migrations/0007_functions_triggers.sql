@@ -145,29 +145,42 @@ alter table orders alter column source set default 'web';
 -- ---------------------------------------------------------------------------
 create or replace function public.gy_refresh_customer_stats(p_customer_id text) returns void
 language plpgsql as $$
+declare
+  v_cnt   integer;
+  v_spent numeric;
+  v_last  timestamptz;
+  v_tier  membership_tiers%rowtype;
 begin
   if p_customer_id is null then return; end if;
-  update customers c set
-    orders_count  = coalesce(s.cnt, 0),
-    total_spent   = coalesce(s.spent, 0),
-    last_order_at = s.last_at,
-    tier_id       = coalesce(
-      (select t.id from membership_tiers t
-        where t.is_active
-          and coalesce(s.spent, 0) >= t.min_spent
-          and coalesce(s.cnt, 0)   >= t.min_orders
-        order by t.min_spent desc, t.min_orders desc
-        limit 1),
-      c.tier_id)
-  from (
-    select
-      count(*)                              as cnt,
-      sum(amount_received)                  as spent,
-      max(created_at)                       as last_at
+
+  -- 口径：只算真正付过钱的订单，金额取实收（amount_received）而不是应收。
+  select count(*), coalesce(sum(amount_received), 0), max(created_at)
+    into v_cnt, v_spent, v_last
     from orders
-    where customer_id = p_customer_id
-      and pay_status in ('paid', 'partial_refund', 'refunded')
-  ) s
+   where customer_id = p_customer_id
+     and pay_status in ('paid', 'partial_refund', 'refunded');
+
+  -- 命中的最高等级；一条都不命中时保持原等级（只升不降）
+  select * into v_tier
+    from membership_tiers t
+   where t.is_active
+     and v_spent >= t.min_spent
+     and v_cnt   >= t.min_orders
+   order by t.min_spent desc, t.min_orders desc
+   limit 1;
+
+  update customers c set
+    orders_count  = v_cnt,
+    total_spent   = v_spent,
+    last_order_at = v_last,
+    tier_id       = coalesce(v_tier.id, c.tier_id),
+    -- level 是展示用文本，必须与 tier_id 同源。
+    -- 原来只更新 tier_id，导致客户中心「按等级筛选」（读 level）和
+    -- 「会员」视图（读 tier_id）对同一个客户给出互相矛盾的答案。
+    level         = coalesce(v_tier.name, c.level),
+    -- 成长值 = 已付款订单数 × 该等级每单成长值。
+    -- 原来没有任何地方写 growth，界面上这一列恒为 0。
+    growth        = v_cnt * coalesce(v_tier.growth_per_order, 0)
   where c.id = p_customer_id;
 end;
 $$;
@@ -348,7 +361,8 @@ declare v_from timestamptz := p_date::timestamptz;
 begin
   insert into web_analytics_daily as d (
     stat_date, pv, uv, sessions, new_visitors, product_clicks, product_views,
-    add_cart, checkouts, orders, paid, inquiries, stay_seconds_total, updated_at)
+    add_cart, checkouts, orders, paid, inquiries, stay_seconds_total,
+    bounce_sessions, updated_at)
   select
     p_date,
     count(*) filter (where event_key = 'page_view'),
@@ -366,6 +380,15 @@ begin
     count(*) filter (where event_key = 'purchase'),
     count(*) filter (where event_key = 'inquiry'),
     coalesce(sum(value) filter (where event_key = 'page_leave'), 0)::bigint,
+    -- 跳出会话 = 整个会话只产生了 1 次 page_view。
+    -- 这一列原来从未被写入，跳出率恒为 0%，analytics.bounce_alert 阈值形同虚设。
+    (select count(*) from (
+        select session_id
+          from web_events
+         where occurred_at >= v_from and occurred_at < v_to
+           and event_key = 'page_view' and session_id is not null
+         group by session_id having count(*) = 1
+      ) b),
     now()
   from web_events
   where occurred_at >= v_from and occurred_at < v_to
@@ -375,17 +398,33 @@ begin
     product_views = excluded.product_views, add_cart = excluded.add_cart,
     checkouts = excluded.checkouts, orders = excluded.orders, paid = excluded.paid,
     inquiries = excluded.inquiries, stay_seconds_total = excluded.stay_seconds_total,
+    bounce_sessions = excluded.bounce_sessions,
     updated_at = now();
 
   delete from web_page_stats where stat_date = p_date;
-  insert into web_page_stats (stat_date, page_path, page_title, pv, uv, sessions, stay_seconds_total)
-  select p_date, page_path, max(page_title),
-         count(*) filter (where event_key = 'page_view'),
-         count(distinct visitor_id), count(distinct session_id),
-         coalesce(sum(value) filter (where event_key = 'page_leave'), 0)::bigint
-  from web_events
-  where occurred_at >= v_from and occurred_at < v_to and page_path is not null
-  group by page_path;
+  insert into web_page_stats
+    (stat_date, page_path, page_title, pv, uv, sessions, stay_seconds_total, bounce_sessions)
+  select e.d, e.page_path, e.title, e.pv, e.uv, e.sessions, e.stay, coalesce(b.cnt, 0)
+    from (
+      select p_date as d, page_path, max(page_title) as title,
+             count(*) filter (where event_key = 'page_view') as pv,
+             count(distinct visitor_id) as uv,
+             count(distinct session_id) as sessions,
+             coalesce(sum(value) filter (where event_key = 'page_leave'), 0)::bigint as stay
+        from web_events
+       where occurred_at >= v_from and occurred_at < v_to and page_path is not null
+       group by page_path
+    ) e
+    left join (
+      -- 单页跳出：该会话全程只有 1 次 page_view，且落在这个页面上
+      select page_path, count(*) as cnt from (
+        select session_id, min(page_path) as page_path
+          from web_events
+         where occurred_at >= v_from and occurred_at < v_to
+           and event_key = 'page_view' and session_id is not null
+         group by session_id having count(*) = 1
+      ) s group by page_path
+    ) b on b.page_path = e.page_path;
 
   delete from web_traffic_sources where stat_date = p_date;
   insert into web_traffic_sources (stat_date, source_key, visitors, sessions, orders)

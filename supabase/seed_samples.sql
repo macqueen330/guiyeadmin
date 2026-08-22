@@ -205,37 +205,135 @@ on conflict do nothing;
 -- 官网埋点：近 30 天的一方数据。页面浏览同时上报给 Vercel Web Analytics，
 -- 这里存的是后台可查询、可聚合的明细，日汇总由 gy_rollup_web_day() 生成。
 -- ---------------------------------------------------------------------------
+-- 官网埋点样例：30 天。
+--
+-- 这段数据必须自洽，否则看板会显示明显不可能的数字。旧版本的写法
+-- （每个事件一个新 visitor）导致 UV(40) > PV(20)，而且 30 天完全一样，
+-- 趋势图是一条水平直线，跳出率与平均停留恒为 0。
+--
+-- 现在的生成规则：
+--   * 每天的浏览量按工作日 / 周末 + 一点周期波动变化，不再是常数；
+--   * 会话从访客池里抽，访客池 < 浏览量 → UV 恒 <= PV；
+--   * 漏斗事件（曝光 / 点击 / 加购 / 下单…）复用**产生过 page_view 的**会话，
+--     所以不会凭空多出没浏览过页面的访客；
+--   * 约三成会话只看一个页面 → 真实的跳出；
+--   * 每次 page_view 配一条 page_leave 带停留秒数 → 平均停留有值。
+with day_plan as (
+  select d,
+         -- 每天 16~34 次页面浏览：工作日多、周末少，叠加一条缓慢上升的趋势
+         (16
+          + ((d * 5 + 3) % 7)
+          + case when extract(dow from (current_date - d)) in (0, 6) then 0 else 6 end
+          + (29 - d) / 8
+         )::int as pv_n
+    from generate_series(0, 29) as d
+),
+plan as (
+  select d, pv_n,
+         greatest(4, (pv_n * 0.62)::int) as sess_n,   -- 会话数 < 浏览量
+         greatest(3, (pv_n * 0.55)::int) as vis_n     -- 访客数 < 会话数 <= 浏览量
+    from day_plan
+),
+views as (
+  -- 每天 pv_n 次浏览，落在 sess_n 个会话 / vis_n 个访客上
+  select p.d, i,
+         1 + (i % p.sess_n) as sess_i,
+         1 + (i % p.vis_n)  as vis_i,
+         1 + ((p.d + i) % 5) as page_i
+    from plan p, generate_series(1, 40) as i
+   where i <= p.pv_n
+),
+funnel as (
+  -- 漏斗事件挂在已经浏览过的会话上（取每个会话的第一次浏览作为归属）
+  select v.d, v.sess_i, v.vis_i, k,
+         case k when 1 then 'product_impression'
+                when 2 then 'product_click'
+                when 3 then 'product_view'
+                when 4 then 'add_cart'
+                when 5 then 'checkout'
+                when 6 then 'order_submit'
+                when 7 then 'purchase'
+                else        'inquiry' end as event_key,
+         k as slot
+    from (
+      select d, sess_i, min(vis_i) as vis_i, min(i) as first_i
+        from views group by d, sess_i
+    ) v
+    join generate_series(1, 8) as k
+      -- 漏斗逐级收窄：曝光多、成交少；同时约 30% 会话只浏览不互动（= 跳出）
+      on (v.sess_i + v.d) % 10 >= 3
+     and k <= case
+                when (v.sess_i * 7 + v.d) % 10 = 0 then 8   -- 少量走完全程
+                when (v.sess_i * 7 + v.d) % 5  = 0 then 5
+                when (v.sess_i * 3 + v.d) % 3  = 0 then 3
+                else 2
+              end
+)
 insert into web_events
   (id, event_key, occurred_at, visitor_id, session_id, page_path, page_title,
    product_id, source, device, country, province, city, value)
+-- 1) 页面浏览
 select
-  'sample-we-' || d || '-' || g,
-  case
-    when g <= 20 then 'page_view'
-    when g <= 26 then 'product_impression'
-    when g <= 31 then 'product_click'
-    when g <= 34 then 'product_view'
-    when g <= 36 then 'add_cart'
-    when g = 37  then 'checkout'
-    when g = 38  then 'order_submit'
-    when g = 39  then 'purchase'
-    else 'inquiry'
-  end,
-  (current_date - d)::timestamptz + make_interval(hours => 8 + (g % 12)),
-  'sample-v-' || ((d * 7 + g) % 260),
-  'sample-s-' || d || '-' || (g % 9),
-  (array['/','/products','/products/osmanthus','/story','/contact'])[1 + ((d + g) % 5)],
-  (array['首页','产品','桂花酿米酒','品牌故事','联系我们'])[1 + ((d + g) % 5)],
-  case when g between 21 and 39
-       then (array['sample-p-1','sample-p-2','sample-p-3','sample-p-4'])[1 + (g % 4)] end,
-  (array['wechat','xhs','direct','search','instagram','fair'])[1 + ((d * 3 + g) % 6)],
-  (array['mobile','mobile','mobile','desktop','tablet'])[1 + (g % 5)],
+  'sample-we-v-' || d || '-' || i,
+  'page_view',
+  (current_date - d)::timestamptz + make_interval(hours => 8 + (i % 13), mins => (i * 7) % 60),
+  case when (vis_i + d) % 3 = 0
+       -- 约三分之一是回访客：visitor_id 跨天复用，新访客占比才不会恒为 100%
+       then 'sample-vis-r-' || (1 + ((vis_i * 3 + d) % 40))
+       else 'sample-vis-' || d || '-' || vis_i end,
+  'sample-ses-' || d || '-' || sess_i,
+  (array['/','/products','/products/osmanthus','/story','/contact'])[page_i],
+  (array['首页','产品','桂花酿米酒','品牌故事','联系我们'])[page_i],
+  null,
+  (array['wechat','xhs','direct','search','instagram','fair'])[1 + ((d * 3 + i) % 6)],
+  (array['mobile','mobile','mobile','desktop','tablet'])[1 + (i % 5)],
   '中国 CN',
-  (array['江苏','上海','北京','浙江','广东','四川'])[1 + ((d + g) % 6)],
-  (array['苏州','上海','北京','杭州','广州','成都'])[1 + ((d + g) % 6)],
-  case when g <= 20 then 30 + ((d * g) % 210) end
-from generate_series(0, 29) as d,
-     generate_series(1, 40) as g
+  (array['江苏','上海','北京','浙江','广东','四川'])[1 + ((d + i) % 6)],
+  (array['苏州','上海','北京','杭州','广州','成都'])[1 + ((d + i) % 6)],
+  null
+from views
+union all
+-- 2) 页面停留（page_leave 的 value = 停留秒数，汇总函数读的就是它）
+select
+  'sample-we-l-' || d || '-' || i,
+  'page_leave',
+  (current_date - d)::timestamptz + make_interval(hours => 8 + (i % 13), mins => ((i * 7) % 60) + 1),
+  case when (vis_i + d) % 3 = 0
+       -- 约三分之一是回访客：visitor_id 跨天复用，新访客占比才不会恒为 100%
+       then 'sample-vis-r-' || (1 + ((vis_i * 3 + d) % 40))
+       else 'sample-vis-' || d || '-' || vis_i end,
+  'sample-ses-' || d || '-' || sess_i,
+  (array['/','/products','/products/osmanthus','/story','/contact'])[page_i],
+  (array['首页','产品','桂花酿米酒','品牌故事','联系我们'])[page_i],
+  null,
+  (array['wechat','xhs','direct','search','instagram','fair'])[1 + ((d * 3 + i) % 6)],
+  (array['mobile','mobile','mobile','desktop','tablet'])[1 + (i % 5)],
+  '中国 CN',
+  (array['江苏','上海','北京','浙江','广东','四川'])[1 + ((d + i) % 6)],
+  (array['苏州','上海','北京','杭州','广州','成都'])[1 + ((d + i) % 6)],
+  25 + ((d * 17 + i * 29) % 260)
+from views
+union all
+-- 3) 漏斗互动
+select
+  'sample-we-f-' || d || '-' || sess_i || '-' || slot,
+  event_key,
+  (current_date - d)::timestamptz + make_interval(hours => 9 + (sess_i % 11), mins => (slot * 6) % 60),
+  case when (vis_i + d) % 3 = 0
+       -- 约三分之一是回访客：visitor_id 跨天复用，新访客占比才不会恒为 100%
+       then 'sample-vis-r-' || (1 + ((vis_i * 3 + d) % 40))
+       else 'sample-vis-' || d || '-' || vis_i end,
+  'sample-ses-' || d || '-' || sess_i,
+  '/products/osmanthus',
+  '桂花酿米酒',
+  (array['sample-p-1','sample-p-2','sample-p-3','sample-p-4'])[1 + ((sess_i + slot) % 4)],
+  (array['wechat','xhs','direct','search','instagram','fair'])[1 + ((d * 3 + sess_i) % 6)],
+  (array['mobile','mobile','mobile','desktop','tablet'])[1 + (sess_i % 5)],
+  '中国 CN',
+  (array['江苏','上海','北京','浙江','广东','四川'])[1 + ((d + sess_i) % 6)],
+  (array['苏州','上海','北京','杭州','广州','成都'])[1 + ((d + sess_i) % 6)],
+  null
+from funnel
 on conflict (id) do nothing;
 
 -- 生成日汇总（PV / UV / 来源 / 设备 / 地域 / 单品漏斗）
