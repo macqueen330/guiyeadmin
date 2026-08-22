@@ -49,8 +49,27 @@ export async function createOrderAction(
     },
     async ({ sb, me }) => {
       const customerId = optStr(fd, "customer_id");
-      const customerName = str(fd, "customer_name");
-      if (!customerName) throw new Error("请填写客户名称");
+      let customerName = str(fd, "customer_name");
+      let country = optStr(fd, "country");
+      let phone = optStr(fd, "contact_phone");
+
+      // 弹窗上写着「留空则使用上面选中的客户」，所以这里必须真的回填。
+      // 原来只读了 customer_id 却从不使用它，选了客户再留空姓名会直接被驳回，
+      // 与界面承诺的行为不符。
+      if (customerId) {
+        const { data: c } = await sb
+          .from("customers")
+          .select("name,country,phone")
+          .eq("id", customerId)
+          .maybeSingle();
+        if (c) {
+          const row = c as Record<string, unknown>;
+          if (!customerName) customerName = String(row.name ?? "");
+          if (!country) country = (row.country as string) ?? null;
+          if (!phone) phone = (row.phone as string) ?? null;
+        }
+      }
+      if (!customerName) throw new Error("请选择客户或填写客户名称");
 
       // 明细：三个平行数组（product_id[] / qty[] / price[]）
       const productIds = list(fd, "item_product_id");
@@ -91,11 +110,11 @@ export async function createOrderAction(
         .insert({
           customer_id: customerId,
           customer_name: customerName,
-          country: str(fd, "country", "中国 CN"),
+          country: country || "中国 CN",
           province: optStr(fd, "province"),
           city: optStr(fd, "city"),
           address: optStr(fd, "address"),
-          contact_phone: optStr(fd, "contact_phone"),
+          contact_phone: phone,
           order_type: str(fd, "order_type", "retail"),
           order_channel: str(fd, "order_channel", "backend"),
           customer_source: str(fd, "customer_source", "organic"),

@@ -75,13 +75,14 @@ npm run db:check               # 校验表 / 函数 / 时间列类型，并确�
 | 6 | `supabase/migrations/0006_platform_tables.sql` | 配置、字典、价格档位、承运商、支付渠道、审批、积分、官网埋点等约 30 张表 |
 | 7 | `supabase/migrations/0007_functions_triggers.sql` | 单号序列、订单状态派生、客户统计、积分、库存流水、官网日汇总、`order_finance_view` |
 | 8 | `supabase/migrations/0008_rls_lockdown.sql` | **收紧 RLS**：anon / authenticated 对所有业务表 0 条策略 |
-| 9 | `supabase/seed_reference.sql` | **必须执行**：字典、系统配置、价格档位、会员等级、支付渠道、承运商、审批规则、角色等基础配置 |
-| 10 | `supabase/seed_samples.sql` | **可选**：几条演示用的商品 / 客户 / 订单 / 支付 / 运单 + 30 天官网埋点，全部以 `sample-` 开头 |
+| 9 | `supabase/migrations/0009_id_defaults.sql` | **必须执行**：给 0001/0002 建的 13 张表补主键默认值。不执行则「新建客户 / 新建订单 / 新建商品 / 新增仓库 / 登记发货 / 登记收款 / 发起退款」全部会因 `id` 非空约束失败 |
+| 10 | `supabase/seed_reference.sql` | **必须执行**：字典、系统配置、价格档位、会员等级、支付渠道、承运商、审批规则、角色等基础配置 |
+| 11 | `supabase/seed_samples.sql` | **可选**：几条演示用的商品 / 客户 / 订单 / 支付 / 运单 + 30 天官网埋点，全部以 `sample-` 开头 |
 
 - 样例数据随时可以清掉：执行 `supabase/clean_samples.sql`（只删 `sample-%`，真实数据不受影响）。
 - 需要彻底重来：`supabase/reset.sql`（**会删掉所有表**）。
 
-> 第 9 步不是可选的。字典、审批阈值、支付渠道、承运商这些「配置类」数据以前写死在
+> 第 9、10 步不是可选的。字典、审批阈值、支付渠道、承运商这些「配置类」数据以前写死在
 > TypeScript 里，现在都在数据库中，不导入界面会大面积空白。
 
 ---
@@ -215,7 +216,7 @@ src/
     logistics/                # types manual httpCarrier registry
     supabase/                 # 浏览器 / 服务端 / service-role 客户端
 supabase/
-  migrations/0001…0008.sql
+  migrations/0001…0009.sql
   seed_reference.sql          # 必须执行：基础配置
   seed_samples.sql            # 可选：sample- 前缀的演示数据
   clean_samples.sql  reset.sql
@@ -223,6 +224,32 @@ scripts/
   create-admin.mts  db-check.mts
 design-reference/             # 原始 Claude Design 导出件
 ```
+
+---
+
+## 端到端测试
+
+容器 / CI 里没有 Supabase 时，也能把整套后台真的跑起来测：`e2e/mock/` 用本地
+Postgres 实现了 PostgREST 与 GoTrue 的兼容层（查询构造、过滤器、count、rpc、
+json 列编码、date/timestamptz 按 JSON 返回字符串、密码 bcrypt 校验、会话 Cookie）。
+
+**应用源码里没有任何测试分支** —— `next.config.ts` 只在 `E2E_MOCK_SUPABASE=1`
+时把 `@supabase/supabase-js` 与 `@supabase/ssr` 指向 mock，所以被测的是真实的
+页面、Server Action、SQL 触发器与 RLS，只换掉网络传输层。
+
+```bash
+# 1) 起一个本地 Postgres，按顺序灌入 0001…0009 + seed_reference + seed_samples
+# 2) 写一份 .env.e2e：E2E_MOCK_SUPABASE=1 与 E2E_DATABASE_URL
+set -a; . ./.env.e2e; set +a
+npx next build && npx next start -p 3100
+
+npm run e2e:crawl      # 遍历 52 个页面 × 子视图，抓页面异常 / 500 / 空白，逐页截图
+npm run e2e:interact   # 真实点击写操作，再回数据库核对副作用与触发器
+```
+
+`e2e:interact` 覆盖：登录与会话落库、新建客户、新建订单（单号序列 / 状态派生 /
+时间轴）、收款确认引发的客户统计与成长值联动、库存单据、安全阈值改完登录页
+跟着变、业务字典改完界面跟着变、全局搜索命中、审计日志、RBAC 越权拦截、退出登录。
 
 ---
 
