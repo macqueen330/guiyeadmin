@@ -17,6 +17,7 @@ import { getCurrentAdmin } from "@/lib/auth/context";
 import { logAudit, actorFrom } from "@/lib/auth/audit";
 import { getGateway, providerFor, readinessFor, resolveCredentials } from "@/lib/payments/registry";
 import { getDb } from "@/lib/data/db";
+import { buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
 
 // 支付中心与财务结算的写入路径。
 //
@@ -523,7 +524,7 @@ export async function markSettlementPaidAction(
 
 async function exportCsv(
   table: string,
-  columns: string[],
+  columns: CsvColumn<Record<string, unknown>>[],
   filename: string,
   permission: string,
   auditAction: string,
@@ -537,14 +538,13 @@ async function exportCsv(
       audit: (r) => ({ action: auditAction, module: moduleName, detail: `导出 ${r.filename}` }),
     },
     async ({ sb }) => {
-      const { data, error } = await sb.from(table).select(columns.join(",")).limit(10000);
+      const { data, error } = await sb
+        .from(table)
+        .select(columns.map((c) => c.key).join(","))
+        .limit(10000);
       if (error) throw new Error(`导出失败：${error.message}`);
       const rows = (data ?? []) as unknown as Record<string, unknown>[];
-      const csv = [
-        columns.join(","),
-        ...rows.map((r) => columns.map((c) => `"${String(r[c] ?? "").replace(/"/g, '""')}"`).join(",")),
-      ].join("\n");
-      return { csv, filename: `${filename}-${new Date().toISOString().slice(0, 10)}.csv` };
+      return { csv: buildCsv(rows, columns), filename: csvFilename(filename) };
     },
   );
 }
@@ -555,7 +555,19 @@ export async function exportPaymentsAction(
 ): Promise<ActionResult<{ csv: string; filename: string }>> {
   return exportCsv(
     "payments",
-    ["order_no", "txn_no", "method", "merchant_no", "amount_due", "amount_paid", "fee", "pay_status", "paid_at", "settle_status", "refunded"],
+    [
+      { key: "order_no", label: "订单号" },
+      { key: "txn_no", label: "交易流水号" },
+      { key: "method", label: "支付方式" },
+      { key: "merchant_no", label: "商户单号" },
+      { key: "amount_due", label: "应收金额" },
+      { key: "amount_paid", label: "实收金额" },
+      { key: "fee", label: "渠道手续费" },
+      { key: "pay_status", label: "支付状态" },
+      { key: "paid_at", label: "支付时间" },
+      { key: "settle_status", label: "结算状态" },
+      { key: "refunded", label: "已退金额" },
+    ],
     "payments",
     "导出财务数据",
     "export_payments",
@@ -569,7 +581,19 @@ export async function exportRefundsAction(
 ): Promise<ActionResult<{ csv: string; filename: string }>> {
   return exportCsv(
     "refunds",
-    ["order_no", "refund_no", "origin_txn_no", "method", "applied_amount", "actual_amount", "reason", "operator", "applied_at", "arrived_at", "status"],
+    [
+      { key: "order_no", label: "订单号" },
+      { key: "refund_no", label: "退款单号" },
+      { key: "origin_txn_no", label: "原交易流水号" },
+      { key: "method", label: "退款方式" },
+      { key: "applied_amount", label: "申请金额" },
+      { key: "actual_amount", label: "实退金额" },
+      { key: "reason", label: "退款原因" },
+      { key: "operator", label: "经办人" },
+      { key: "applied_at", label: "申请时间" },
+      { key: "arrived_at", label: "到账时间" },
+      { key: "status", label: "退款状态" },
+    ],
     "refunds",
     "导出财务数据",
     "export_refunds",
@@ -583,7 +607,17 @@ export async function exportSettlementsAction(
 ): Promise<ActionResult<{ csv: string; filename: string }>> {
   return exportCsv(
     "settlements",
-    ["ref_no", "type", "party", "amount", "currency", "status", "due_date", "paid_at", "created_at"],
+    [
+      { key: "ref_no", label: "结算单号" },
+      { key: "type", label: "结算类型" },
+      { key: "party", label: "结算对象" },
+      { key: "amount", label: "金额" },
+      { key: "currency", label: "币种" },
+      { key: "status", label: "结算状态" },
+      { key: "due_date", label: "应结日期" },
+      { key: "paid_at", label: "结清时间" },
+      { key: "created_at", label: "创建时间" },
+    ],
     "settlements",
     "导出财务数据",
     "export_settlements",

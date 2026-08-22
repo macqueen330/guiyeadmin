@@ -12,6 +12,7 @@ import {
 } from "@/lib/actions/common";
 import { canActDirectly, createApprovalRequest } from "@/lib/data/approvals";
 import { getCurrentAdmin } from "@/lib/auth/context";
+import { buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
 
 // 商品与库存的写入路径。
 //
@@ -411,23 +412,22 @@ export async function exportInventoryAction(
       }),
     },
     async ({ sb }) => {
-      const cols = [
-        "sku_code",
-        "product_name",
-        "warehouse_name",
-        "sellable",
-        "locked",
-        "transit",
-        "safety_stock",
+      const COLS: CsvColumn<Record<string, unknown>>[] = [
+        { key: "sku_code", label: "SKU" },
+        { key: "product_name", label: "商品名称" },
+        { key: "warehouse_name", label: "仓库" },
+        { key: "sellable", label: "可售" },
+        { key: "locked", label: "锁定" },
+        { key: "transit", label: "在途" },
+        { key: "safety_stock", label: "安全库存" },
       ];
-      const { data, error } = await sb.from("inventory_view").select(cols.join(",")).limit(10000);
+      const { data, error } = await sb
+        .from("inventory_view")
+        .select(COLS.map((c) => c.key).join(","))
+        .limit(10000);
       if (error) throw new Error(`导出失败：${error.message}`);
       const rows = (data ?? []) as unknown as Record<string, unknown>[];
-      const csv = [
-        cols.join(","),
-        ...rows.map((r) => cols.map((c) => `"${String(r[c] ?? "").replace(/"/g, '""')}"`).join(",")),
-      ].join("\n");
-      return { csv, filename: `inventory-${new Date().toISOString().slice(0, 10)}.csv` };
+      return { csv: buildCsv(rows, COLS), filename: csvFilename("inventory") };
     },
   );
 }

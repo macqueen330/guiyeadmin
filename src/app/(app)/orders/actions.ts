@@ -12,6 +12,7 @@ import {
 import { canActDirectly, createApprovalRequest } from "@/lib/data/approvals";
 import { getCurrentAdmin } from "@/lib/auth/context";
 import { loadSettings } from "@/lib/data/settings";
+import { buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
 
 // 订单中心的写入路径。原来这个模块里 13 个可点控件（新建订单、5 个订单类型、
 // 6 个批量操作、行内「收款确认 / 处理异常 / 发货」）没有一个带 onClick，
@@ -532,31 +533,37 @@ export async function exportOrdersAction(
       }),
     },
     async ({ sb, me }) => {
+      const COLS: CsvColumn<Record<string, unknown>>[] = [
+        { key: "order_no", label: "订单号" },
+        { key: "customer_name", label: "客户" },
+        { key: "country", label: "国家 / 地区" },
+        { key: "province", label: "省 / 直辖市" },
+        { key: "order_type", label: "订单类型" },
+        { key: "order_channel", label: "下单渠道" },
+        { key: "payment_method", label: "支付方式" },
+        { key: "amount", label: "应付金额" },
+        { key: "amount_received", label: "实收金额" },
+        { key: "pay_status", label: "支付状态" },
+        { key: "fulfill_status", label: "履约状态" },
+        { key: "settle_status", label: "结算状态" },
+        { key: "created_at", label: "下单时间" },
+      ];
       const { data, error } = await sb
         .from("orders")
-        .select(
-          "order_no,customer_name,country,province,order_type,order_channel,payment_method,amount,amount_received,pay_status,fulfill_status,settle_status,created_at",
-        )
+        .select(COLS.map((c) => c.key).join(","))
         .order("created_at", { ascending: false })
         .limit(5000);
       if (error) throw new Error(`导出失败：${error.message}`);
-      const rows = (data ?? []) as Record<string, unknown>[];
+      const rows = (data ?? []) as unknown as Record<string, unknown>[];
 
       // 超过阈值的导出需要审批（security.export_approval_rows）。
       const { security } = await loadSettings();
       if (rows.length > security.exportApprovalRows) {
-        const gate = await canActDirectly(me.level, "export_customers", rows.length);
+        const gate = await canActDirectly(me.level, "export_orders", rows.length);
         if (!gate.allowed) throw new Error(gate.reason ?? "导出行数超过阈值，需要审批");
       }
 
-      const header = Object.keys(rows[0] ?? { order_no: "" });
-      const csv = [
-        header.join(","),
-        ...rows.map((r) =>
-          header.map((h) => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(","),
-        ),
-      ].join("\n");
-      return { csv, filename: `orders-${new Date().toISOString().slice(0, 10)}.csv` };
+      return { csv: buildCsv(rows, COLS), filename: csvFilename("orders") };
     },
   );
 }

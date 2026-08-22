@@ -164,8 +164,12 @@ export async function WebAnalytics() {
           label="独立访客"
           value={fmtNumber(o.uv)}
           delta={o.uvDelta}
-          sub="UV"
-          hint="去重后的独立访客数，同一访客多次访问只算一次。"
+          sub={o.uvExact ? "UV" : "UV · 每日相加"}
+          hint={
+            o.uvExact
+              ? "整个区间内去重后的访客数，同一访客访问多天也只算一次。"
+              : "埋点明细已超出保留期，此处为各日 UV 相加，回访客会被重复计数。"
+          }
         />
         <WebKpi
           label="新访客"

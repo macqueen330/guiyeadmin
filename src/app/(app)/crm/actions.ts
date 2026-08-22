@@ -18,6 +18,7 @@ import { getCurrentAdmin } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
 import { getFollowUps, getPointsLedger } from "@/lib/data/queries";
 import type { CustomerFollowUp, PointsEntry } from "@/lib/types";
+import { buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
 
 // 客户中心（用户）的写入路径。
 //
@@ -433,12 +434,30 @@ export async function exportCustomersAction(
       }),
     },
     async ({ sb, me }) => {
-      const cols = includeContact
-        ? "name,country,email,phone,type,level,orders_count,total_spent,points,last_order_at,created_at"
-        : "name,country,type,level,orders_count,total_spent,points,last_order_at,created_at";
+      // 等级不足直接拒绝，且在查询之前 —— 不要先把联系方式捞出来再丢掉。
+      if (includeContact && me.level === "L3") {
+        throw new Error("三级管理员不可导出含联系方式的客户资料");
+      }
+      const COLS: CsvColumn<Record<string, unknown>>[] = [
+        { key: "name", label: "客户名称" },
+        { key: "country", label: "国家 / 地区" },
+        ...(includeContact
+          ? [
+              { key: "email", label: "邮箱" },
+              { key: "phone", label: "手机号" },
+            ]
+          : []),
+        { key: "type", label: "客户类型" },
+        { key: "level", label: "会员等级" },
+        { key: "orders_count", label: "订单数" },
+        { key: "total_spent", label: "累计消费" },
+        { key: "points", label: "积分" },
+        { key: "last_order_at", label: "最近下单" },
+        { key: "created_at", label: "创建时间" },
+      ];
       const { data, error } = await sb
         .from("customers")
-        .select(cols)
+        .select(COLS.map((c) => c.key).join(","))
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(10000);
@@ -450,18 +469,7 @@ export async function exportCustomersAction(
         const gate = await canActDirectly(me.level, "export_customers", rows.length);
         if (!gate.allowed) throw new Error(gate.reason ?? "导出行数超过阈值，需要审批");
       }
-      if (includeContact && me.level === "L3") {
-        throw new Error("三级管理员不可导出含联系方式的客户资料");
-      }
-
-      const header = cols.split(",");
-      const csv = [
-        header.join(","),
-        ...rows.map((r) =>
-          header.map((h) => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(","),
-        ),
-      ].join("\n");
-      return { csv, filename: `customers-${new Date().toISOString().slice(0, 10)}.csv` };
+      return { csv: buildCsv(rows, COLS), filename: csvFilename("customers") };
     },
   );
 }

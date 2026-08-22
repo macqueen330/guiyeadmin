@@ -18,12 +18,15 @@ export type OrderStatus =
 
 export type OrderSource =
   | "web"
-  | "dealer"
+  | "wechat"
+  | "backend" // 运营在后台代客下单
+  | "offline" // 线下门店 / 收银台
+  | "api" // 外部系统导入
+  | "dealer" // 经销商代下单（由客户类型判定，不再由下单渠道硬猜）
+  | "wholesale"
   | "fair"
   | "whatsapp"
-  | "instagram"
-  | "wechat"
-  | "wholesale";
+  | "instagram";
 
 // 订单类型（业务性质）· 下单渠道（在哪下单）· 客户来源（最早从哪认识）。
 export type OrderType =
@@ -816,6 +819,8 @@ export interface WebOverview {
   ctr: number;
   convRate: number;
   newRate: number;
+  /** true = 独立访客按明细去重；false = 明细已过保留期，只能按每日 UV 相加 */
+  uvExact: boolean;
 }
 
 export interface WebViewsSummary {

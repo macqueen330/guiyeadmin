@@ -141,6 +141,36 @@ function pctChange(current: number, previous: number): number | null {
   return ((current - previous) / previous) * 100;
 }
 
+/**
+ * 窗口内的独立访客 / 会话：对 web_events.visitor_id 去重。
+ *
+ * 原来直接把每日 UV 相加，回访客会被重复计数 —— 30 天「独立访客」因此可能
+ * 大于「新访客总数」，这在真实数据里不可能。明细超出保留期被清理时
+ * （analytics.web_retention_days）拿不到去重值，此时回落到每日相加，
+ * 并由调用方标注口径。
+ */
+/** YYYY-MM-DD 的前一天 */
+function dayBefore(d: string): string {
+  const t = new Date(`${d}T00:00:00Z`);
+  t.setUTCDate(t.getUTCDate() - 1);
+  return t.toISOString().slice(0, 10);
+}
+
+async function uniquesIn(
+  from: string,
+  to: string,
+): Promise<{ visitors: number; sessions: number } | null> {
+  const sb = await getDb();
+  if (!sb) return null;
+  const { data, error } = await sb.rpc("gy_web_uniques", { p_from: from, p_to: to });
+  if (error || !data) return null;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  const visitors = num((row as Record<string, unknown>).visitors);
+  const sessions = num((row as Record<string, unknown>).sessions);
+  return visitors > 0 ? { visitors, sessions } : null;
+}
+
 export const getWebOverview = cache(async (days = 30): Promise<WebOverview> => {
   const { from, to, prevFrom } = await dateWindow(days);
   const all = await fetchDaily(prevFrom, to);
@@ -148,9 +178,16 @@ export const getWebOverview = cache(async (days = 30): Promise<WebOverview> => {
   const prev = all.filter((r) => r.stat_date < from);
 
   const pv = total(rows, "pv");
-  const uv = total(rows, "uv");
-  const sessions = total(rows, "sessions");
   const clicks = total(rows, "product_clicks");
+
+  // 独立访客与会话优先用明细去重；拿不到才回落到每日相加。
+  // 上一周期的结束日必须是 from 的前一天，否则两个窗口会重叠一天，环比失真。
+  const prevTo = dayBefore(from);
+  const [cur, prv] = await Promise.all([uniquesIn(from, to), uniquesIn(prevFrom, prevTo)]);
+  const uv = cur?.visitors ?? total(rows, "uv");
+  const sessions = cur?.sessions ?? total(rows, "sessions");
+  const prevUv = prv?.visitors ?? total(prev, "uv");
+  const uvExact = cur !== null;
   const paid = total(rows, "paid");
   const stay = total(rows, "stay_seconds_total");
   const bounce = total(rows, "bounce_sessions");
@@ -169,10 +206,11 @@ export const getWebOverview = cache(async (days = 30): Promise<WebOverview> => {
     avgStaySeconds: pv ? stay / pv : 0,
     bounceRate: sessions ? (bounce / sessions) * 100 : 0,
     pvDelta: pctChange(pv, total(prev, "pv")),
-    uvDelta: pctChange(uv, total(prev, "uv")),
+    uvDelta: pctChange(uv, prevUv),
     ctr: pv ? (clicks / pv) * 100 : 0,
     convRate: uv ? (paid / uv) * 100 : 0,
     newRate: uv ? (newVisitors / uv) * 100 : 0,
+    uvExact,
   };
 });
 
@@ -226,18 +264,25 @@ export const getWebViews = cache(async (): Promise<WebViewsSummary> => {
   const month = pick(monthFrom);
   const prevMonth = pick(prevMonthFrom, monthFrom);
 
+  // 独立访客按窗口去重，与下方「独立访客」KPI 用同一口径 ——
+  // 否则同一个页面上会出现 406 和 314 两个「独立访客」。
+  const [uMonth, uTotal] = await Promise.all([
+    uniquesIn(monthFrom, today),
+    every.length ? uniquesIn(every[0].d, today) : Promise.resolve(null),
+  ]);
+
   return {
     pvToday: todayRow?.pv ?? 0,
     uvToday: todayRow?.uv ?? 0,
     pvTodayDelta: pctChange(todayRow?.pv ?? 0, yRow?.pv ?? 0),
     pvMonth: month.reduce((s, r) => s + r.pv, 0),
-    uvMonth: month.reduce((s, r) => s + r.uv, 0),
+    uvMonth: uMonth?.visitors ?? month.reduce((s, r) => s + r.uv, 0),
     pvMonthDelta: pctChange(
       month.reduce((s, r) => s + r.pv, 0),
       prevMonth.reduce((s, r) => s + r.pv, 0),
     ),
     pvTotal: every.reduce((s, r) => s + r.pv, 0),
-    uvTotal: every.reduce((s, r) => s + r.uv, 0),
+    uvTotal: uTotal?.visitors ?? every.reduce((s, r) => s + r.uv, 0),
     since: every[0]?.d ?? null,
   };
 });

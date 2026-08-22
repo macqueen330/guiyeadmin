@@ -248,6 +248,7 @@ insert into approval_rules
   ('stock_adjust','库存调整', 0,    100,  'L2', false, '小批量盘点',        5),
   ('stock_adjust','大批量库存调整', 100, null, 'L1', false, null,           6),
   ('export_customers','批量导出客户资料', 0, null, 'L1', false, '含手机号 / 邮箱', 7),
+  ('export_orders',   '批量导出订单',     0, null, 'L1', false, '单次导出行数超过安全阈值', 8),
   ('order_amount_change','修改已完成订单金额', 0, null, 'L1', true, null,   8)
 on conflict (action_key, min_amount) do nothing;
 

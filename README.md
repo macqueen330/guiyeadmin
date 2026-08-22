@@ -76,13 +76,14 @@ npm run db:check               # 校验表 / 函数 / 时间列类型，并确�
 | 7 | `supabase/migrations/0007_functions_triggers.sql` | 单号序列、订单状态派生、客户统计、积分、库存流水、官网日汇总、`order_finance_view` |
 | 8 | `supabase/migrations/0008_rls_lockdown.sql` | **收紧 RLS**：anon / authenticated 对所有业务表 0 条策略 |
 | 9 | `supabase/migrations/0009_id_defaults.sql` | **必须执行**：给 0001/0002 建的 13 张表补主键默认值。不执行则「新建客户 / 新建订单 / 新建商品 / 新增仓库 / 登记发货 / 登记收款 / 发起退款」全部会因 `id` 非空约束失败 |
-| 10 | `supabase/seed_reference.sql` | **必须执行**：字典、系统配置、价格档位、会员等级、支付渠道、承运商、审批规则、角色等基础配置 |
-| 11 | `supabase/seed_samples.sql` | **可选**：几条演示用的商品 / 客户 / 订单 / 支付 / 运单 + 30 天官网埋点，全部以 `sample-` 开头 |
+| 10 | `supabase/migrations/0010_source_and_web_uniques.sql` | 订单来源不再由下单渠道硬猜（后台代下单不再被记成经销商）；新增 `gy_web_uniques()` 供官网独立访客窗口去重 |
+| 11 | `supabase/seed_reference.sql` | **必须执行**：字典、系统配置、价格档位、会员等级、支付渠道、承运商、审批规则、角色等基础配置 |
+| 12 | `supabase/seed_samples.sql` | **可选**：几条演示用的商品 / 客户 / 订单 / 支付 / 运单 + 30 天官网埋点，全部以 `sample-` 开头 |
 
 - 样例数据随时可以清掉：执行 `supabase/clean_samples.sql`（只删 `sample-%`，真实数据不受影响）。
 - 需要彻底重来：`supabase/reset.sql`（**会删掉所有表**）。
 
-> 第 9、10 步不是可选的。字典、审批阈值、支付渠道、承运商这些「配置类」数据以前写死在
+> 第 9、11 步不是可选的。字典、审批阈值、支付渠道、承运商这些「配置类」数据以前写死在
 > TypeScript 里，现在都在数据库中，不导入界面会大面积空白。
 
 ---
@@ -216,7 +217,7 @@ src/
     logistics/                # types manual httpCarrier registry
     supabase/                 # 浏览器 / 服务端 / service-role 客户端
 supabase/
-  migrations/0001…0009.sql
+  migrations/0001…0010.sql
   seed_reference.sql          # 必须执行：基础配置
   seed_samples.sql            # 可选：sample- 前缀的演示数据
   clean_samples.sql  reset.sql
@@ -238,7 +239,7 @@ json 列编码、date/timestamptz 按 JSON 返回字符串、密码 bcrypt 校�
 页面、Server Action、SQL 触发器与 RLS，只换掉网络传输层。
 
 ```bash
-# 1) 起一个本地 Postgres，按顺序灌入 0001…0009 + seed_reference + seed_samples
+# 1) 起一个本地 Postgres，按顺序灌入 0001…0010 + seed_reference + seed_samples
 # 2) 写一份 .env.e2e：E2E_MOCK_SUPABASE=1 与 E2E_DATABASE_URL
 set -a; . ./.env.e2e; set +a
 npx next build && npx next start -p 3100
@@ -250,6 +251,27 @@ npm run e2e:interact   # 真实点击写操作，再回数据库核对副作用�
 `e2e:interact` 覆盖：登录与会话落库、新建客户、新建订单（单号序列 / 状态派生 /
 时间轴）、收款确认引发的客户统计与成长值联动、库存单据、安全阈值改完登录页
 跟着变、业务字典改完界面跟着变、全局搜索命中、审计日志、RBAC 越权拦截、退出登录。
+
+`e2e:export` 覆盖 7 个 CSV 导出：真触发浏览器下载并解析文件 —— 行数与库对数、
+UTF-8 BOM、中文表头、列数对齐、**公式注入防护**、导出留痕，以及审批阈值对
+L1（本人即审批人，放行）/ L2（被规则拦下）/ L3（看不到按钮）的不同表现。
+
+---
+
+## 关于 CSV 导出
+
+7 个导出（订单 / 客户 / 库存 / 运单 / 收款 / 退款 / 结算）共用
+`src/lib/csv.ts`：
+
+- **中文表头**。文件是给运营和财务的，不该让他们对着 `settle_status`
+  `amount_received` 猜字段。
+- **公式注入防护**。客户姓名、备注、异常说明都是自由文本，以 `=` `+` `-` `@`
+  或制表符开头的单元格在 Excel / WPS / Google Sheets 里会被当公式执行。
+  这里统一加单引号前缀（纯数字不受影响）。
+- **UTF-8 BOM** 由前端下载时补，Excel 打开中文不乱码。
+- **超阈值需审批**：行数超过 `security.export_approval_rows` 时走
+  `approval_rules`。一级管理员本身是审批人所以直接放行，二级会被挡下并提示
+  规则名，三级连按钮都看不到。每次导出都写 `admin_audit_logs`。
 
 ---
 

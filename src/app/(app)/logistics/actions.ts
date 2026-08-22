@@ -12,6 +12,7 @@ import type { ShipmentEvent } from "@/lib/types";
 import { getDb } from "@/lib/data/db";
 import { getCurrentAdmin } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
+import { buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
 
 // 仓储物流的写入路径。
 //
@@ -407,25 +408,24 @@ export async function exportShipmentsAction(
       audit: (r) => ({ action: "export_shipments", module: "仓储物流", detail: `导出 ${r.filename}` }),
     },
     async ({ sb }) => {
-      const cols = [
-        "order_no",
-        "carrier",
-        "tracking_no",
-        "destination",
-        "status",
-        "exception",
-        "freight_cost",
-        "shipped_at",
-        "delivered_at",
+      const COLS: CsvColumn<Record<string, unknown>>[] = [
+        { key: "order_no", label: "订单号" },
+        { key: "carrier", label: "承运商" },
+        { key: "tracking_no", label: "物流单号" },
+        { key: "destination", label: "目的地" },
+        { key: "status", label: "运单状态" },
+        { key: "exception", label: "异常说明" },
+        { key: "freight_cost", label: "运费" },
+        { key: "shipped_at", label: "发出时间" },
+        { key: "delivered_at", label: "送达时间" },
       ];
-      const { data, error } = await sb.from("shipments").select(cols.join(",")).limit(10000);
+      const { data, error } = await sb
+        .from("shipments")
+        .select(COLS.map((c) => c.key).join(","))
+        .limit(10000);
       if (error) throw new Error(`导出失败：${error.message}`);
       const rows = (data ?? []) as unknown as Record<string, unknown>[];
-      const csv = [
-        cols.join(","),
-        ...rows.map((r) => cols.map((c) => `"${String(r[c] ?? "").replace(/"/g, '""')}"`).join(",")),
-      ].join("\n");
-      return { csv, filename: `shipments-${new Date().toISOString().slice(0, 10)}.csv` };
+      return { csv: buildCsv(rows, COLS), filename: csvFilename("shipments") };
     },
   );
 }

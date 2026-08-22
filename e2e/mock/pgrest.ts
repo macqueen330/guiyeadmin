@@ -386,8 +386,17 @@ export function makeQueryClient() {
         const keys = Object.keys(args ?? {});
         const values = keys.map((k) => normalize((args as any)[k]));
         const named = keys.map((k, i) => `${ident(k)} => $${i + 1}`).join(", ");
-        const res = await db().query(`select ${ident(fn)}(${named}) as result`, values as any[]);
-        return { data: res.rows[0]?.result ?? null, error: null };
+        // `select * from fn(...)` 对标量函数和 returns table 的函数都成立。
+        // PostgREST 对标量返回标量、对 table 返回对象数组，这里对齐这个行为：
+        // 只有一行一列且列名就是函数名时，才拆成标量。
+        const res = await db().query(`select * from ${ident(fn)}(${named})`, values as any[]);
+        const rows = res.rows ?? [];
+        if (rows.length === 1) {
+          const cols = Object.keys(rows[0]);
+          if (cols.length === 1 && cols[0] === fn) return { data: rows[0][cols[0]], error: null };
+        }
+        if (rows.length === 0) return { data: null, error: null };
+        return { data: rows, error: null };
       } catch (e) {
         return { data: null, error: toError(e) };
       }

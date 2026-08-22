@@ -59,6 +59,9 @@ export const ORDER_STATUS: Record<OrderStatus, Tone> = {
 
 export const ORDER_SOURCE: Record<OrderSource, Tone> = {
   web: { text: "GUIYE 官网", color: "#1f7a5c", bg: "#e9f5ef" },
+  backend: { text: "后台代下单", color: "#5b6470", bg: "#eef0f2" },
+  offline: { text: "线下门店", color: "#b07d18", bg: "#fbf4e3" },
+  api: { text: "API 导入", color: "#4a6fa5", bg: "#eaf0f8" },
   dealer: { text: "经销商代下单", color: "#c2703d", bg: "#fbf0e6" },
   fair: { text: "展会现场", color: "#b07d18", bg: "#fbf4e3" },
   whatsapp: { text: "WhatsApp", color: "#1f8a5b", bg: "#e7f6ee" },
