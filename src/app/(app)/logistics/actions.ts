@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { dec, int, optStr, runAction, str, type ActionResult } from "@/lib/actions/common";
+import { dec, int, mustAffect, optStr, runAction, str, type ActionResult } from "@/lib/actions/common";
 import {
   getCarrierByCode,
   persistTrackingEvents,
@@ -315,8 +315,7 @@ export async function saveWarehouseAction(
       if (!row.code) throw new Error("请填写仓库编码");
 
       if (id) {
-        const { error } = await sb.from("warehouses").update(row).eq("id", id);
-        if (error) throw new Error(`保存失败：${error.message}`);
+        await mustAffect(sb.from("warehouses").update(row).eq("id", id).select("id"), "保存仓库");
         // 仓库改名后同步订单上的冗余显示字段，避免两处名字不一致。
         await sb.from("orders").update({ ship_from: name }).eq("warehouse_id", id);
       } else {

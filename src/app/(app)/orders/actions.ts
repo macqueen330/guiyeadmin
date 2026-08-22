@@ -5,6 +5,7 @@ import {
   dec,
   list,
   optStr,
+  mustAffect,
   runAction,
   str,
   type ActionResult,
@@ -202,8 +203,7 @@ export async function updateOrderStatusAction(
           order.settle_status === "unsettled" ? "reconciling" : order.settle_status;
       }
 
-      const { error } = await sb.from("orders").update(patch).eq("id", order.id);
-      if (error) throw new Error(`更新失败：${error.message}`);
+      await mustAffect(sb.from("orders").update(patch).eq("id", order.id).select("id"), "更新订单状态");
 
       if (note) {
         await sb.from("order_events").insert({
@@ -308,8 +308,10 @@ export async function changeOrderAmountAction(
         .eq("order_no", orderNo)
         .maybeSingle();
       if (!order) throw new Error("订单不存在");
-      const { error } = await sb.from("orders").update({ amount: newAmount }).eq("id", order.id);
-      if (error) throw new Error(`修改失败：${error.message}`);
+      await mustAffect(
+        sb.from("orders").update({ amount: newAmount }).eq("id", order.id).select("id"),
+        "修改订单金额",
+      );
       await sb.from("order_events").insert({
         order_id: order.id,
         order_no: orderNo,
@@ -358,11 +360,13 @@ export async function cancelOrderAction(
       if (["paid", "partial_refund"].includes(String(order.pay_status))) {
         throw new Error("该订单已收款，请先发起退款再取消");
       }
-      const { error } = await sb
+      const { data, error } = await sb
         .from("orders")
         .update({ cancelled_at: new Date().toISOString(), fulfill_status: "fulfill_exception" })
-        .eq("id", order.id);
+        .eq("id", order.id)
+        .select("id");
       if (error) throw new Error(`取消失败：${error.message}`);
+      if (((data ?? []) as unknown[]).length === 0) throw new Error("取消失败：订单不存在或无权修改");
       await sb.from("order_events").insert({
         order_id: order.id,
         order_no: orderNo,
@@ -451,8 +455,7 @@ export async function updateOrderShippingAction(
         patch.warehouse_id = wh.id;
         patch.ship_from = wh.name;
       }
-      const { error } = await sb.from("orders").update(patch).eq("order_no", orderNo);
-      if (error) throw new Error(`更新失败：${error.message}`);
+      await mustAffect(sb.from("orders").update(patch).eq("order_no", orderNo).select("id"), "保存订单信息");
       refresh(orderNo);
     },
   );

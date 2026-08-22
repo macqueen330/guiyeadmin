@@ -6,6 +6,7 @@ import {
   dec,
   int,
   optStr,
+  mustAffect,
   runAction,
   str,
   type ActionResult,
@@ -137,8 +138,7 @@ export async function updateProductAction(
     async ({ sb }) => {
       if (!id) throw new Error("缺少商品 ID");
       const patch = productPatch(fd);
-      const { error } = await sb.from("products").update(patch).eq("id", id);
-      if (error) throw new Error(`保存失败：${error.message}`);
+      await mustAffect(sb.from("products").update(patch).eq("id", id).select("id"), "保存商品");
       refresh();
     },
   );
@@ -163,8 +163,7 @@ export async function toggleProductStatusAction(
       }),
     },
     async ({ sb }) => {
-      const { error } = await sb.from("products").update({ status }).eq("id", id);
-      if (error) throw new Error(`操作失败：${error.message}`);
+      await mustAffect(sb.from("products").update({ status }).eq("id", id).select("id"), "上下架商品");
       refresh();
     },
   );

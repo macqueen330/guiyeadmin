@@ -7,6 +7,7 @@ import {
   int,
   list,
   optStr,
+  mustAffect,
   runAction,
   str,
   type ActionResult,
@@ -134,8 +135,7 @@ export async function updateCustomerAction(
       if (!id) throw new Error("缺少客户 ID");
       const patch = customerPatch(fd);
       if (!patch.name) throw new Error("请填写客户姓名");
-      const { error } = await sb.from("customers").update(patch).eq("id", id);
-      if (error) throw new Error(`保存失败：${error.message}`);
+      await mustAffect(sb.from("customers").update(patch).eq("id", id).select("id"), "保存客户资料");
       refresh(id);
     },
   );
@@ -169,11 +169,14 @@ export async function deleteCustomerAction(
         .not("pay_status", "in", "(refunded)")
         .in("fulfill_status", ["assign", "prep", "wait_ship", "shipped"]);
       if ((count ?? 0) > 0) throw new Error(`该客户还有 ${count} 笔未完成订单，不能停用`);
-      const { error } = await sb
-        .from("customers")
-        .update({ deleted_at: new Date().toISOString(), status: "disabled", remark: reason })
-        .eq("id", id);
-      if (error) throw new Error(`停用失败：${error.message}`);
+      await mustAffect(
+        sb
+          .from("customers")
+          .update({ deleted_at: new Date().toISOString(), status: "disabled", remark: reason })
+          .eq("id", id)
+          .select("id"),
+        "停用客户",
+      );
       refresh();
     },
   );
@@ -200,8 +203,10 @@ export async function reassignCustomerAction(
       }),
     },
     async ({ sb }) => {
-      const { error } = await sb.from("customers").update({ owner_admin_id: ownerId }).eq("id", id);
-      if (error) throw new Error(`调整失败：${error.message}`);
+      await mustAffect(
+        sb.from("customers").update({ owner_admin_id: ownerId }).eq("id", id).select("id"),
+        "调整客户归属",
+      );
       refresh(id);
     },
   );
@@ -295,7 +300,8 @@ export async function addFollowUpAction(
       await sb
         .from("customers")
         .update({ last_contacted_at: now, next_follow_up_at: nextAt })
-        .eq("id", customerId);
+        .eq("id", customerId)
+        .select("id");
       refresh(customerId);
     },
   );
@@ -402,10 +408,13 @@ export async function upsertMembershipTierAction(
         is_active: bool(fd, "is_active"),
       };
       if (!row.code) throw new Error("请填写等级代码");
-      const { error } = id
-        ? await sb.from("membership_tiers").update(row).eq("id", id)
-        : await sb.from("membership_tiers").insert(row);
+      const { data, error } = id
+        ? await sb.from("membership_tiers").update(row).eq("id", id).select("id")
+        : await sb.from("membership_tiers").insert(row).select("id");
       if (error) throw new Error(`保存失败：${error.message}`);
+      if (((data ?? []) as unknown[]).length === 0) {
+        throw new Error("保存失败：没有匹配到该等级，请刷新后重试");
+      }
       refresh();
     },
   );

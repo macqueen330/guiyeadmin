@@ -120,6 +120,35 @@ export async function runAction<T>(
 
 // ---- FormData 取值助手（Server Action 的入参都是字符串）----
 
+
+// ---------------------------------------------------------------------------
+// 写入结果校验
+// ---------------------------------------------------------------------------
+
+/**
+ * PostgREST 的 UPDATE / DELETE 命中 0 行时返回 204，**error 是 null**。
+ * 只判断 error 的写法会在下面这些情况下谎报成功：
+ *   * 行被 RLS 策略过滤掉（生产环境最常见）
+ *   * 页面开了很久，行已被别人删除 / 软删除
+ *   * id 拼错或前端传了空值
+ * 症状就是「界面提示已保存，回头一看数据没变」。
+ *
+ * 所以所有针对单条记录的写入都要经过这里：带 select 拿回受影响的行，
+ * 0 行一律当作失败。
+ */
+export async function mustAffect(
+  q: PromiseLike<{ data: unknown; error: { message: string } | null }>,
+  what: string,
+): Promise<Record<string, unknown>[]> {
+  const { data, error } = await q;
+  if (error) throw new Error(`${what}失败：${error.message}`);
+  const rows = (data ?? []) as Record<string, unknown>[];
+  if (rows.length === 0) {
+    throw new Error(`${what}失败：没有匹配到记录（可能已被删除，或当前账号无权修改）。请刷新后重试。`);
+  }
+  return rows;
+}
+
 export function str(fd: FormData, key: string, fallback = ""): string {
   const v = fd.get(key);
   return v === null ? fallback : String(v).trim();

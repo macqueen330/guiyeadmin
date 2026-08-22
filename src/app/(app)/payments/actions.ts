@@ -8,6 +8,7 @@ import {
   list,
   optStr,
   requireSuperAdmin,
+  mustAffect,
   runAction,
   str,
   type ActionResult,
@@ -92,8 +93,10 @@ export async function savePaymentGatewayAction(
       if (patch.fee_rate !== null && (Number(patch.fee_rate) < 0 || Number(patch.fee_rate) > 0.2)) {
         throw new Error("费率应为 0–0.2 之间的小数（0.006 = 0.6%）");
       }
-      const { error } = await sb.from("payment_gateways").update(patch).eq("provider", provider);
-      if (error) throw new Error(`保存失败：${error.message}`);
+      await mustAffect(
+        sb.from("payment_gateways").update(patch).eq("provider", provider).select("id"),
+        "保存支付渠道配置",
+      );
       refresh();
     },
   );
@@ -370,11 +373,13 @@ export async function markRefundArrivedAction(
       if (!refund) throw new Error("退款单不存在");
       const amount = actual || Number(refund.applied_amount) || 0;
 
-      const { error } = await sb
+      const { data, error } = await sb
         .from("refunds")
         .update({ status: "success", actual_amount: amount, arrived_at: new Date().toISOString() })
-        .eq("id", refundId);
+        .eq("id", refundId)
+        .select("id");
       if (error) throw new Error(`更新失败：${error.message}`);
+      if (((data ?? []) as unknown[]).length === 0) throw new Error("更新失败：退款单不存在或无权修改");
 
       // 同步支付流水的累计退款与订单支付状态。
       const { data: payment } = await sb
@@ -512,11 +517,13 @@ export async function markSettlementPaidAction(
       }),
     },
     async ({ sb }) => {
-      const { error } = await sb
+      const { data, error } = await sb
         .from("settlements")
         .update({ status: "paid", paid_at: new Date().toISOString() })
-        .eq("id", id);
+        .eq("id", id)
+        .select("id");
       if (error) throw new Error(`更新失败：${error.message}`);
+      if (((data ?? []) as unknown[]).length === 0) throw new Error("更新失败：结算单不存在或无权修改");
       refresh();
     },
   );
