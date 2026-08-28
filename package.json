@@ -13,7 +13,8 @@
     "e2e:crawl": "node e2e/crawl.mjs",
     "e2e:interact": "node e2e/interact.mjs",
     "e2e:export": "node e2e/export.mjs",
-    "e2e:controls": "node e2e/controls.mjs"
+    "e2e:controls": "node e2e/controls.mjs",
+    "e2e:tracker": "node e2e/tracker.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

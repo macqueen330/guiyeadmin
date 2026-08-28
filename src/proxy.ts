@@ -82,7 +82,10 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Run on everything except static assets & image optimization. Auth pages are
   // matched too (so their session cookie stays fresh) but handled as public above.
+  // public/ 下的静态文件也要排除。原来只排除了图片后缀，导致 robots.txt、
+  // sitemap.xml、字体、以及给官网用的 /guiye-track.js 全部被弹去登录页
+  // （浏览器侧表现为 ERR_BLOCKED_BY_ORB —— 拿到的是 HTML 而不是 JS）。
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|js|mjs|css|map|txt|xml|json|woff|woff2|ttf|otf|eot|pdf|mp4|webm)$).*)",
   ],
 };

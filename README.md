@@ -192,6 +192,37 @@ npm run admin:create -- --email admin@guiye.com --name 你的名字 --level L1
   再由 `gy_rollup_web_day()` 汇总成 `web_analytics_daily` / `web_page_stats` /
   `web_traffic_sources` / `web_device_stats` / `web_region_stats` / `web_product_stats`。
   `/analytics?view=web` 读的就是这些汇总表。
+### 给官网 guiyecy.com 接入
+
+`public/guiye-track.js` 是给官网用的埋点脚本，托管在后台域名下，所以它和
+`/api/analytics/collect` 的字段契约永远同版本。官网加一行即可：
+
+```html
+<script defer src="https://<后台域名>/guiye-track.js"
+        data-endpoint="https://<后台域名>/api/analytics/collect"></script>
+<!-- 若配置了 ANALYTICS_INGEST_TOKEN，再加 data-token="..." -->
+```
+
+自动采集页面浏览、停留时长（含 SPA 路由切换）、设备与来源（utm_source 优先，
+其次按 referrer 归类）。业务事件两种写法：
+
+```html
+<a data-gy-event="product_click" data-gy-product="sku-001">看看这款</a>
+```
+```js
+window.guiye.track("add_cart", { product_id: "sku-001" });
+```
+
+可用事件见 `web_event_types` 表（page_view / product_impression / product_click /
+product_view / add_cart / checkout / order_submit / purchase / inquiry /
+download / wechat_click / whatsapp_click / video_play / video_complete /
+story_click / page_leave）。白名单外的事件前端就会拦掉。
+
+**这一套和 Vercel Web Analytics 是两件事**：`@vercel/analytics` 只有
+`inject` / `track` / `pageview`，**没有任何读取接口**，数据只留在 Vercel 控制台，
+取不回自己的库。所以官网若部署在 Vercel，两者可以同时装 —— Vercel 给你开箱即用的
+实时看板，这个脚本给你能和订单表关联、能做单品漏斗的一方数据。
+
 - 经营指标（KPI / 趋势 / 排行 / 漏斗 / 待办）统一在 `src/lib/data/metrics.ts` 计算，
   所以同一个「待发货」在首页数字、侧边栏徽标、业务流程条上永远是同一个值。
   日切按 `app_settings.analytics.tz_offset_hours`（默认 +8），不是服务器的 UTC。
@@ -254,7 +285,8 @@ npx next build && npx next start -p 3100
 npm run e2e:crawl      # 遍历 52 个页面 × 子视图，抓页面异常 / 500 / 空白，逐页截图
 npm run e2e:interact   # 真实点击写操作，再回数据库核对副作用
 npm run e2e:export     # 7 个 CSV 导出：真下载、解析文件、对数
-npm run e2e:controls   # 编辑回显、逐字段回写、高级筛选、搜索、批量操作与触发器
+npm run e2e:controls   # 编辑回显、逐字段回写、高级筛选、搜索、批量操作
+npm run e2e:tracker    # 起一个模拟官网，验证埋点脚本→采集端点→汇总表全链路与触发器
 ```
 
 `e2e:interact` 覆盖：登录与会话落库、新建客户、新建订单（单号序列 / 状态派生 /
