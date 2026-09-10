@@ -78,7 +78,10 @@ export async function loadSecurityPolicies(): Promise<PolicyItem[]> {
     {
       key: "new_device_otp",
       text: "新设备登录需手机验证码",
-      status: sec.newDeviceOtp ? "planned" : "planned",
+      // 无论开关开没开都是「规划中」—— 短信通道还没接，开关本身不产生任何效果。
+      // 这里以前写成 `sec.newDeviceOtp ? "planned" : "planned"`，
+      // 两边一样，容易让人以为将来会区分。
+      status: "planned",
       note: "尚未实现：需要先接入短信服务商；开启开关不会产生任何效果",
       settingKey: "security.new_device_otp",
     },
@@ -93,7 +96,7 @@ export async function loadSecurityPolicies(): Promise<PolicyItem[]> {
       key: "export_approval",
       text: `单次导出超过 ${sec.exportApprovalRows} 行需审批`,
       status: "enforced",
-      note: "导出动作调用 approval_rules 判定，超阈值生成审批单",
+      note: "七个导出动作（订单 / 客户 / 发货单 / 库存 / 支付流水 / 退款 / 结算单）统一调用 assertExportAllowed()，超阈值按 approval_rules 生成审批单",
       settingKey: "security.export_approval_rows",
     },
   ];

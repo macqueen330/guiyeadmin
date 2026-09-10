@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { ReadFailureList } from "@/components/ui/ReadFailure";
 import { Icon } from "@/components/ui/Icon";
 import { EmptyState } from "@/components/ui/Form";
 import { requireAdmin } from "@/lib/auth/context";
@@ -88,6 +89,10 @@ export default async function SearchPage({
             : "在顶栏搜索框输入关键词，或按 ⌘K / Ctrl+K 聚焦"}
         </span>
       </Card>
+
+      {/* 某一类结果查挂了不会带走整次搜索，但必须说出来 ——
+          否则「查询失败」和「没搜到」在界面上一模一样。 */}
+      <ReadFailureList />
 
       {results.q && results.total === 0 && (
         <Card>

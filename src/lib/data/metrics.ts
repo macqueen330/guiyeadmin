@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
-import { getDb, num } from "./db";
+import { getDb, num, DataReadError } from "./db";
 import { loadSettings } from "./settings";
 import { loadDict } from "./dict";
 import { dictLabel, dictTone } from "@/lib/dict";
@@ -102,16 +102,40 @@ const ORDER_COLS =
   "settle_status,order_channel,order_type,customer_source,country,province," +
   "warehouse_id,created_at,paid_at";
 
+/**
+ * 区间内的订单，**分页取全量**。
+ *
+ * 原来是一次 .limit(20000) 且按时间倒序：超限时先被丢掉的是最早的那几天，
+ * 30 天趋势图会凭空出现几天 0，而界面上没有任何「已截断」的提示。
+ * PostgREST 本身还有 max-rows 上限（Supabase 默认 1000），
+ * 所以就算不写 limit 也会被静默截断 —— 必须显式翻页。
+ */
+const PAGE = 1000;
+const MAX_PAGES = 60; // 6 万单的保护上限；真到这个量级该下推到 SQL 聚合了
+
 async function fetchOrdersSince(since: Date): Promise<OrderSlice[]> {
   const sb = await getDb();
   if (!sb) return [];
-  const { data, error } = await sb
-    .from("orders")
-    .select(ORDER_COLS)
-    .gte("created_at", since.toISOString())
-    .order("created_at", { ascending: false })
-    .limit(20000);
-  if (error || !data) return [];
+  const rows: Record<string, unknown>[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data, error } = await sb
+      .from("orders")
+      .select(ORDER_COLS)
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    if (error) throw new DataReadError("orders", error.message);
+    const batch = (data ?? []) as unknown as Record<string, unknown>[];
+    rows.push(...batch);
+    if (batch.length < PAGE) break;
+    if (page === MAX_PAGES - 1) {
+      throw new DataReadError(
+        "orders",
+        `区间内订单超过 ${MAX_PAGES * PAGE} 条，聚合会失真。请缩短统计区间，或把这段改成 SQL 侧聚合。`,
+      );
+    }
+  }
+  const data = rows;
   return (data as unknown as Record<string, unknown>[]).map((r) => ({
     ...(r as unknown as OrderSlice),
     amount: num(r.amount),
@@ -121,6 +145,16 @@ async function fetchOrdersSince(since: Date): Promise<OrderSlice[]> {
 
 /** 已成交订单：支付成功 / 部分退款（退款单独计入退款指标）。 */
 const PAID_STATUSES = new Set(["paid", "partial_refund"]);
+
+/**
+ * 「待发货」的唯一口径。首页速览、侧边栏徽标、今日待办、业务流程条都用它 ——
+ * 以前三处各写各的：首页排除了 pay_status='refunded'，徽标和待办没排除，
+ * 于是「已退款但还卡在履约中」的订单会让三个数字打架。
+ */
+export const PENDING_SHIP_STATUSES = ["assign", "prep", "wait_ship"] as const;
+
+/** 已退款的订单不再需要发货，不该算进待发货。 */
+const NOT_REFUNDED = "(refunded)";
 
 function sumAmount(rows: OrderSlice[]): number {
   return rows.reduce((s, o) => s + o.amount, 0);
@@ -169,16 +203,29 @@ export const getTodayStats = cache(async (): Promise<TodayStat[]> => {
   const salesDelta = pctChange(todaySales, yesterdaySales);
   const todayPaid = today.filter((o) => PAID_STATUSES.has(o.pay_status)).length;
 
-  // 待发货（全量，不只今天）+ 其中超时的
-  const pendingShip = await sb
-    .from("orders")
-    .select("id,created_at", { count: "exact" })
-    .in("fulfill_status", ["assign", "prep", "wait_ship"])
-    .not("pay_status", "in", "(refunded)")
-    .limit(5000);
-  const pendingRows = (pendingShip.data ?? []) as { created_at: string }[];
-  const overdueCutoff = Date.now() - settings.orders.overdueShipHours * 3_600_000;
-  const overdue = pendingRows.filter((r) => new Date(r.created_at).getTime() < overdueCutoff).length;
+  // 待发货（全量，不只今天）+ 其中超时的。
+  // 总数用 PostgREST 返回的 count，不是 .limit() 之后的数组长度 ——
+  // 原来两者混用，超过 5000 单之后首页会永远显示 5000。
+  const overdueCutoffIso = new Date(
+    Date.now() - settings.orders.overdueShipHours * 3_600_000,
+  ).toISOString();
+  const [pendingShip, overdueShip] = await Promise.all([
+    sb
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .in("fulfill_status", PENDING_SHIP_STATUSES)
+      .not("pay_status", "in", NOT_REFUNDED),
+    sb
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .in("fulfill_status", PENDING_SHIP_STATUSES)
+      .not("pay_status", "in", NOT_REFUNDED)
+      .lt("created_at", overdueCutoffIso),
+  ]);
+  if (pendingShip.error) throw new DataReadError("orders", pendingShip.error.message);
+  if (overdueShip.error) throw new DataReadError("orders", overdueShip.error.message);
+  const pendingCount = pendingShip.count ?? 0;
+  const overdue = overdueShip.count ?? 0;
 
   const invRows = (inventory.data ?? []) as Record<string, unknown>[];
   const lowSkus = invRows.filter((r) => {
@@ -223,7 +270,7 @@ export const getTodayStats = cache(async (): Promise<TodayStat[]> => {
     {
       key: "pending_ship",
       label: "待发货",
-      value: pendingRows.length,
+      value: pendingCount,
       format: "number",
       sub: overdue > 0 ? `含 ${overdue} 单超时` : "无超时订单",
       icon: "truck",
@@ -282,11 +329,12 @@ export const getKpis = cache(async (): Promise<Kpi[]> => {
   const thisMonth = orders.filter((o) => new Date(o.created_at) >= monthStart);
   const lastMonth = orders.filter((o) => new Date(o.created_at) < monthStart);
 
-  const { data: refundRows } = await sb
+  const { data: refundRows , error: refundRowsErr } = await sb
     .from("refunds")
     .select("actual_amount,applied_at,status")
     .gte("applied_at", prevMonthStart.toISOString())
     .in("status", ["success", "reconciled"]);
+  if (refundRowsErr) throw new DataReadError("refunds", refundRowsErr.message);
   const refunds = (refundRows ?? []) as Record<string, unknown>[];
   const refundThis = refunds
     .filter((r) => new Date(String(r.applied_at)) >= monthStart)
@@ -306,14 +354,23 @@ export const getKpis = cache(async (): Promise<Kpi[]> => {
   const refundRate = gmv ? (refundThis / gmv) * 100 : 0;
   const refundRateLast = gmvLast ? (refundLast / gmvLast) * 100 : 0;
 
-  const pendingShipCount = thisMonth.filter((o) =>
-    ["assign", "prep", "wait_ship"].includes(o.fulfill_status),
+  const pendingShipCount = thisMonth.filter(
+    (o) =>
+      (PENDING_SHIP_STATUSES as readonly string[]).includes(o.fulfill_status) &&
+      o.pay_status !== "refunded",
   ).length;
 
-  const sales = await getTrendSeries("sales", "30");
-  const orderSeries = await getTrendSeries("orders", "30");
-  const refundSeries = await getTrendSeries("refunds", "30");
-  const receivedSeries = await getTrendSeries("received", "30");
+  const [sales, orderSeries, refundSeries] = await Promise.all([
+    getTrendSeries("sales", "30"),
+    getTrendSeries("orders", "30"),
+    getTrendSeries("refunds", "30"),
+  ]);
+  // 客单价的迷你曲线要画客单价本身。原来画的是「实收」日序列 ——
+  // 另外三张卡的曲线都和主数字一致，只有这张不是，看起来像客单价走势，其实不是。
+  const aovSeries = sales.map((p, i) => {
+    const n = orderSeries[i]?.value ?? 0;
+    return { ...p, value: n > 0 ? p.value / n : 0 };
+  });
 
   return [
     {
@@ -370,7 +427,7 @@ export const getKpis = cache(async (): Promise<Kpi[]> => {
       deltaLabel: "较上月",
       positiveWhenUp: true,
       tone: "blue",
-      spark: receivedSeries.map((p) => p.value),
+      spark: aovSeries.map((p) => p.value),
     },
   ];
 });
@@ -394,17 +451,25 @@ export async function getTrendSeries(
     const rows = metric === "refunds" ? [] : await fetchOrdersSince(start);
     const buckets = new Array(24).fill(0);
     for (const o of rows) {
+      if (metric === "received") {
+        // 实收按**到账时间**分桶，不是下单时间。1 号下单、5 号付款的钱
+        // 原来被算进 1 号，做现金流判断会错。没有 paid_at 就不计入。
+        if (!o.paid_at) continue;
+        const ph = businessHourKey(o.paid_at, tz);
+        if (ph >= 0) buckets[ph] += o.amount_received;
+        continue;
+      }
       const h = businessHourKey(o.created_at, tz);
       if (metric === "orders") buckets[h] += 1;
-      else if (metric === "received") buckets[h] += o.amount_received;
       else if (PAID_STATUSES.has(o.pay_status)) buckets[h] += o.amount;
     }
     if (metric === "refunds") {
-      const { data } = await sb
+      const { data , error: error } = await sb
         .from("refunds")
         .select("actual_amount,applied_at")
         .gte("applied_at", start.toISOString())
         .in("status", ["success", "reconciled"]);
+      if (error) throw new DataReadError("refunds", error.message);
       for (const r of (data ?? []) as Record<string, unknown>[]) {
         buckets[businessHourKey(String(r.applied_at), tz)] += num(r.actual_amount);
       }
@@ -429,22 +494,32 @@ export async function getTrendSeries(
   }
 
   if (metric === "refunds") {
-    const { data } = await sb
+    const { data , error: error } = await sb
       .from("refunds")
       .select("actual_amount,applied_at")
       .gte("applied_at", start.toISOString())
       .in("status", ["success", "reconciled"]);
+    if (error) throw new DataReadError("refunds", error.message);
     for (const r of (data ?? []) as Record<string, unknown>[]) {
       const k = businessDateKey(String(r.applied_at), tz);
       if (buckets.has(k)) buckets.set(k, buckets.get(k)! + num(r.actual_amount));
     }
   } else {
-    const rows = await fetchOrdersSince(start);
+    // 实收要按到账时间取数：一张 30 天前下的单可能昨天才付款，
+    // 按 created_at 拉取会把它整条漏掉，所以取数窗口放宽一倍再按 paid_at 归日。
+    const rows = await fetchOrdersSince(
+      metric === "received" ? businessDayStart(tz, days * 2 - 1) : start,
+    );
     for (const o of rows) {
+      if (metric === "received") {
+        if (!o.paid_at) continue;
+        const pk = businessDateKey(o.paid_at, tz);
+        if (buckets.has(pk)) buckets.set(pk, buckets.get(pk)! + o.amount_received);
+        continue;
+      }
       const k = businessDateKey(o.created_at, tz);
       if (!buckets.has(k)) continue;
       if (metric === "orders") buckets.set(k, buckets.get(k)! + 1);
-      else if (metric === "received") buckets.set(k, buckets.get(k)! + o.amount_received);
       else if (PAID_STATUSES.has(o.pay_status)) buckets.set(k, buckets.get(k)! + o.amount);
     }
   }
@@ -570,7 +645,8 @@ async function fetchItemsForOrders(orderIds: string[]): Promise<ItemSlice[]> {
       .from("order_items")
       .select("order_id,product_id,product_name,sku_code,qty,price")
       .in("order_id", chunk);
-    if (error || !data) continue;
+    if (error) throw new DataReadError("order_items", error.message);
+    if (!data) continue;
     for (const r of data as Record<string, unknown>[]) {
       out.push({
         order_id: String(r.order_id),
@@ -639,7 +715,10 @@ export const getProductRanking = cache(async (limit = 6): Promise<ProductRank[]>
     units: a.units,
     orders: a.orders.size,
     pct: top > 0 ? Math.round((a.revenue / top) * 100) : 0,
-    growth: a.prevRevenue ? ((a.revenue - a.prevRevenue) / a.prevRevenue) * 100 : 0,
+    // 上月没卖过的商品没有可比基数。原来这里硬编码成 0，于是从 0 冲上榜首的
+    // 新品会显示「环比 +0.0%」并渲染成绿色 —— 那是个编出来的数。
+    // 项目其它地方的 pctChange() 在同样情况都返回 null。
+    growth: a.prevRevenue ? ((a.revenue - a.prevRevenue) / a.prevRevenue) * 100 : null,
   }));
 });
 
@@ -737,7 +816,8 @@ export const getAlerts = cache(async (): Promise<AlertItem[]> => {
       sb
         .from("orders")
         .select("id", { count: "exact", head: true })
-        .in("fulfill_status", ["assign", "prep", "wait_ship"])
+        .in("fulfill_status", PENDING_SHIP_STATUSES)
+        .not("pay_status", "in", NOT_REFUNDED)
         .lt("created_at", overdueCutoff),
       sb
         .from("customers")
@@ -845,7 +925,8 @@ export const getNavBadgeCounts = cache(async (): Promise<Record<string, number>>
     sb
       .from("orders")
       .select("id", { count: "exact", head: true })
-      .in("fulfill_status", ["assign", "prep", "wait_ship"]),
+      .in("fulfill_status", PENDING_SHIP_STATUSES)
+      .not("pay_status", "in", NOT_REFUNDED),
     sb.from("shipments").select("id", { count: "exact", head: true }).eq("status", "exception"),
   ]);
   return {
@@ -877,6 +958,7 @@ export const getRecentActivity = cache(async (limit = 5): Promise<ActivityRow[]>
     .eq("category", "operation")
     .order("created_at", { ascending: false })
     .limit(limit);
-  if (error || !data) return [];
+  if (error) throw new DataReadError("admin_audit_logs", error.message);
+  if (!data) return [];
   return data as ActivityRow[];
 });

@@ -7,7 +7,7 @@ import "server-only";
 // Aggregates (KPI / 排行 / 漏斗 / 待办) live in ./metrics.ts, website analytics
 // in ./web.ts, configuration in ./settings.ts and ./dict.ts.
 
-import { getDb, selectAll, coerceNumbers, num } from "./db";
+import { getDb, selectAll, coerceNumbers, num, DataReadError } from "./db";
 import type {
   Admin,
   ApprovalRequest,
@@ -72,7 +72,8 @@ export async function getOrderByNo(orderNo: string): Promise<Order | null> {
     .select("*")
     .eq("order_no", orderNo)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error) throw new DataReadError("orders", error.message);
+  if (!data) return null; // 确实没有这张订单
   const [row] = coerceNumbers([data as Record<string, unknown>], [
     "amount",
     "amount_received",
@@ -93,7 +94,8 @@ export async function getOrderItems(orderId: string): Promise<OrderItem[]> {
     .select("*")
     .eq("order_id", orderId)
     .order("id");
-  if (error || !data) return [];
+  if (error) throw new DataReadError("order_items", error.message);
+  if (!data) return [];
   return coerceNumbers(data as Record<string, unknown>[], [
     "qty",
     "price",
@@ -110,7 +112,8 @@ export async function getOrderEvents(orderId: string): Promise<OrderEvent[]> {
     .select("*")
     .eq("order_id", orderId)
     .order("created_at", { ascending: true });
-  if (error || !data) return [];
+  if (error) throw new DataReadError("order_events", error.message);
+  if (!data) return [];
   return data as OrderEvent[];
 }
 
@@ -121,7 +124,8 @@ export async function getRefundedByOrder(): Promise<Record<string, number>> {
   const { data, error } = await sb
     .from("order_finance_view")
     .select("order_no,refunded");
-  if (error || !data) return {};
+  if (error) throw new DataReadError("order_finance_view", error.message);
+  if (!data) return {};
   const out: Record<string, number> = {};
   for (const r of data as { order_no: string; refunded: unknown }[]) {
     out[r.order_no] = num(r.refunded);
@@ -141,7 +145,8 @@ export async function getCustomers(): Promise<Customer[]> {
     .select("*")
     .is("deleted_at", null)
     .order("last_order_at", { ascending: false, nullsFirst: false });
-  if (error || !data) return [];
+  if (error) throw new DataReadError("customers", error.message);
+  if (!data) return [];
   return coerceNumbers(data as Record<string, unknown>[], [
     "orders_count",
     "total_spent",
@@ -153,7 +158,8 @@ export async function getCustomers(): Promise<Customer[]> {
 export async function getCustomerById(id: string): Promise<Customer | null> {
   const sb = await getDb();
   if (!sb) return null;
-  const { data } = await sb.from("customers").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await sb.from("customers").select("*").eq("id", id).maybeSingle();
+  if (error) throw new DataReadError("customers", error.message);
   if (!data) return null;
   const [row] = coerceNumbers([data as Record<string, unknown>], [
     "orders_count",
@@ -184,7 +190,8 @@ export async function getCustomerTags(): Promise<CustomerTag[]> {
 export async function getCustomerTagLinks(): Promise<Record<string, string[]>> {
   const sb = await getDb();
   if (!sb) return {};
-  const { data } = await sb.from("customer_tag_links").select("customer_id,tag_id");
+  const { data, error } = await sb.from("customer_tag_links").select("customer_id,tag_id");
+  if (error) throw new DataReadError("customer_tag_links", error.message);
   const out: Record<string, string[]> = {};
   for (const r of (data ?? []) as { customer_id: string; tag_id: string }[]) {
     (out[r.customer_id] ??= []).push(r.tag_id);
@@ -195,24 +202,26 @@ export async function getCustomerTagLinks(): Promise<Record<string, string[]>> {
 export async function getPointsLedger(customerId: string, limit = 50): Promise<PointsEntry[]> {
   const sb = await getDb();
   if (!sb) return [];
-  const { data } = await sb
+  const { data, error } = await sb
     .from("points_ledger")
     .select("*")
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false })
     .limit(limit);
+  if (error) throw new DataReadError("points_ledger", error.message);
   return (data ?? []) as PointsEntry[];
 }
 
 export async function getFollowUps(customerId: string, limit = 20): Promise<CustomerFollowUp[]> {
   const sb = await getDb();
   if (!sb) return [];
-  const { data } = await sb
+  const { data, error } = await sb
     .from("customer_follow_ups")
     .select("*")
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false })
     .limit(limit);
+  if (error) throw new DataReadError("customer_follow_ups", error.message);
   return (data ?? []) as CustomerFollowUp[];
 }
 
@@ -261,11 +270,12 @@ export async function getPriceTiers(): Promise<PriceTier[]> {
 export async function getProductPrices(): Promise<ProductPrice[]> {
   const sb = await getDb();
   if (!sb) return [];
-  const { data } = await sb
+  const { data, error } = await sb
     .from("product_prices")
     .select("*")
     .eq("is_active", true)
     .order("min_qty", { ascending: true });
+  if (error) throw new DataReadError("product_prices", error.message);
   return coerceNumbers((data ?? []) as Record<string, unknown>[], [
     "price",
     "min_qty",
@@ -320,11 +330,12 @@ export async function getCarriers(): Promise<Carrier[]> {
 export async function getShipmentEvents(shipmentId: string): Promise<ShipmentEvent[]> {
   const sb = await getDb();
   if (!sb) return [];
-  const { data } = await sb
+  const { data, error } = await sb
     .from("shipment_events")
     .select("*")
     .eq("shipment_id", shipmentId)
     .order("occurred_at", { ascending: false });
+  if (error) throw new DataReadError("shipment_events", error.message);
   return (data ?? []) as ShipmentEvent[];
 }
 
@@ -411,7 +422,8 @@ export async function getApprovalRequests(status?: string): Promise<ApprovalRequ
   if (!sb) return [];
   let q = sb.from("approval_requests").select("*").order("created_at", { ascending: false });
   if (status) q = q.eq("status", status);
-  const { data } = await q;
+  const { data, error } = await q;
+  if (error) throw new DataReadError("approval_requests", error.message);
   return coerceNumbers((data ?? []) as Record<string, unknown>[], [
     "amount",
   ]) as unknown as ApprovalRequest[];
@@ -420,11 +432,12 @@ export async function getApprovalRequests(status?: string): Promise<ApprovalRequ
 export async function getAdmins(): Promise<Admin[]> {
   const sb = await getDb();
   if (!sb) return [];
-  const { data } = await sb
+  const { data, error } = await sb
     .from("admins")
     .select("*")
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
+  if (error) throw new DataReadError("admins", error.message);
   return (data ?? []) as Admin[];
 }
 

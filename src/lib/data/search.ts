@@ -8,7 +8,7 @@ import "server-only";
 // 搜索在服务端用 PostgREST 的 ilike 完成（而不是把整表拉回来再 filter），
 // 每类结果最多 20 条，并且严格受调用者的模块权限限制。
 
-import { getDb, num } from "./db";
+import { getDb, num, recordReadFailure } from "./db";
 import { canViewModule } from "@/lib/auth/permissions";
 import type { Admin } from "@/lib/types";
 
@@ -46,7 +46,9 @@ function rows(
   res: { data: unknown[] | null; error: { message: string } | null },
 ): Record<string, unknown>[] {
   if (res.error) {
-    console.error(`[search] ${label} 查询失败：${res.error.message}`);
+    // 一类结果查挂了不该带走整次搜索，但必须登记 —— 否则「查询失败」
+    // 又会被当成「没搜到」。
+    recordReadFailure(`搜索·${label}`, res.error.message);
     return [];
   }
   return (res.data ?? []) as Record<string, unknown>[];

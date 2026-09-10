@@ -79,7 +79,45 @@ function toError(e: unknown): PgrestError {
   };
 }
 
-const ident = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
+const quote = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
+/**
+ * 标识符。支持 PostgREST 的限定列名：嵌套资源上的过滤器写成 "orders.created_at"，
+ * 要展开成 "orders"."created_at"，不能整个当成一个列名去引。
+ */
+const ident = (s: string) => String(s).split(".").map(quote).join(".");
+
+/**
+ * 从 select 字符串里拆出嵌套资源：
+ *   "qty,price,orders!inner(created_at,pay_status)"
+ *     → [{ table: "orders", inner: true, cols: ["created_at","pay_status"] }]
+ *
+ * 以前这里直接把带 "(" 的列丢掉，注释写着「本项目未使用」——
+ * 但 web.ts 的单品销售额恰恰用了 orders!inner(...)，
+ * 于是那段唯一的销售额取数从来没被任何测试跑过。
+ */
+function parseEmbeds(cols: string): { table: string; inner: boolean; cols: string[] }[] {
+  const out: { table: string; inner: boolean; cols: string[] }[] = [];
+  const re = /([A-Za-z_][\w]*)(!inner|!left)?\(([^()]*)\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(cols)) !== null) {
+    out.push({
+      table: m[1],
+      inner: m[2] === "!inner",
+      cols: m[3].split(",").map((c) => c.trim()).filter(Boolean),
+    });
+  }
+  return out;
+}
+
+/** 去掉嵌套资源片段，只留本表自己的列。 */
+function stripEmbeds(cols: string): string {
+  const rest = cols
+    .replace(/([A-Za-z_][\w]*)(!inner|!left)?\([^()]*\)/g, "")
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
+  return rest.length ? rest.join(",") : "*";
+}
 
 type Op = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "is" | "in" | "like" | "ilike" | "cs";
 
@@ -113,6 +151,8 @@ class Builder implements PromiseLike<{ data: any; error: PgrestError | null; cou
   private headOnly = false;
   private returning = false;
   private singleMode: "one" | "maybe" | null = null;
+  /** 嵌套资源：select("qty,orders!inner(created_at,pay_status)") */
+  private embeds: { table: string; inner: boolean; cols: string[] }[] = [];
 
   constructor(table: string) {
     this.table = table;
@@ -209,11 +249,14 @@ class Builder implements PromiseLike<{ data: any; error: PgrestError | null; cou
 
   // -- 动词 ---------------------------------------------------------------
   select(cols?: string, opts?: { count?: string; head?: boolean }) {
+    const raw = cols && cols.trim() ? cols : "*";
+    this.embeds = parseEmbeds(raw);
+    const plain = stripEmbeds(raw);
     if (this.verb === "select") {
-      this.cols = cols && cols.trim() ? cols : "*";
+      this.cols = plain;
     } else {
       this.returning = true;
-      this.cols = cols && cols.trim() ? cols : "*";
+      this.cols = plain;
     }
     if (opts?.count) this.wantCount = true;
     if (opts?.head) this.headOnly = true;
@@ -247,13 +290,42 @@ class Builder implements PromiseLike<{ data: any; error: PgrestError | null; cou
   }
 
   private projection(): string {
-    if (this.cols === "*") return "*";
-    const list = this.cols
-      .split(",")
-      .map((c) => c.trim())
-      .filter(Boolean)
-      .filter((c) => !c.includes("(")); // 不支持嵌套资源；本项目未使用
-    return list.length ? list.map((c) => ident(c.split(":").pop()!.trim())).join(", ") : "*";
+    const base = ident(this.table);
+    const own =
+      this.cols === "*"
+        ? [`${base}.*`]
+        : this.cols
+            .split(",")
+            .map((c) => c.trim())
+            .filter(Boolean)
+            .map((c) => `${base}.${ident(c.split(":").pop()!.trim())}`);
+    // 嵌套资源按 PostgREST 的形状返回：外层多一个以关联表命名的对象字段。
+    const embedded = this.embeds.map((e) => {
+      const t = ident(e.table);
+      const obj = e.cols
+        .map((c) => `'${c.replace(/'/g, "''")}', ${t}.${ident(c)}`)
+        .join(", ");
+      return `json_build_object(${obj}) as ${ident(e.table)}`;
+    });
+    const all = [...own, ...embedded];
+    return all.length ? all.join(", ") : "*";
+  }
+
+  /**
+   * 嵌套资源的 JOIN。
+   *
+   * 真的 PostgREST 走外键元数据；这里按本项目的命名约定推断即可：
+   * 关联表 orders 的单数形式 + "_id" 就是本表上的外键列（order_items.order_id）。
+   */
+  private joins(): string {
+    return this.embeds
+      .map((e) => {
+        const t = ident(e.table);
+        const fk = ident(`${e.table.replace(/s$/, "")}_id`);
+        const kind = e.inner ? "join" : "left join";
+        return `${kind} ${t} on ${t}."id" = ${ident(this.table)}.${fk}`;
+      })
+      .join(" ");
   }
 
   private build(jsonSet: Set<string>): { text: string; values: unknown[] } {
@@ -261,6 +333,8 @@ class Builder implements PromiseLike<{ data: any; error: PgrestError | null; cou
     if (this.verb === "select") {
       const w = this.bind(this.conds, 1);
       let text = `select ${this.headOnly ? "1" : this.projection()} from ${t}`;
+      const j = this.joins();
+      if (j) text += ` ${j}`;
       if (w.sql) text += ` where ${w.sql}`;
       if (this.orders.length) text += ` order by ${this.orders.join(", ")}`;
       const values = [...w.params];

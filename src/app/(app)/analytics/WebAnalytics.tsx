@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { TrackerHealth } from "./TrackerHealth";
 import { Icon } from "@/components/ui/Icon";
 import { InfoHint } from "@/components/ui/InfoHint";
 import { RatioDonut } from "@/components/dashboard/RatioDonut";
@@ -15,6 +16,7 @@ import {
   getWebOverview,
   getWebTrend,
   getWebViews,
+  getTrackerHealth,
 } from "@/lib/data/web";
 import { loadSettings } from "@/lib/data/settings";
 import { fetchWebSeriesAction } from "@/lib/actions/series";
@@ -103,7 +105,7 @@ export async function WebAnalytics() {
   const settings = await loadSettings();
   const days = 30;
 
-  const [o, products, pages, sources, devices, cities, funnel, events, views, series, prevSeries] =
+  const [o, products, pages, sources, devices, cities, funnel, events, views, series, prevSeries, health] =
     await Promise.all([
       getWebOverview(days),
       getProductAnalytics(days),
@@ -116,6 +118,7 @@ export async function WebAnalytics() {
       getWebViews(),
       getWebTrend("pv", days),
       getWebTrend("pv", days * 2),
+      getTrackerHealth(),
     ]);
 
   const prevTotal = prevSeries
@@ -133,6 +136,8 @@ export async function WebAnalytics() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <WebViews data={views} />
 
+      <TrackerHealth health={health} />
+
       {!hasAnyData && (
         <Card style={{ background: "#fff7ec", border: "1px solid #f2e2c4" }}>
           <div style={{ display: "flex", gap: 10 }}>
@@ -141,12 +146,15 @@ export async function WebAnalytics() {
               <b>还没有收到官网埋点数据。</b>
               <br />
               页面浏览已经在上报给 Vercel Web Analytics（Vercel 控制台 → Analytics）。
-              要让本页的漏斗、来源、地域、单品数据也变成真实数字，请在官网中把事件 POST 到{" "}
-              <code>/api/analytics/collect</code>，例如：
+              要让本页的漏斗、来源、地域、单品数据也变成真实数字，在官网
+              <code>&lt;/body&gt;</code> 前加这一行就够了：
               <br />
               <code style={{ fontSize: 11.5 }}>
-                {`navigator.sendBeacon("/api/analytics/collect", JSON.stringify({ visitor_id, session_id, events: [{ event_key: "page_view", page_path: location.pathname }] }))`}
+                {`<script defer src="https://<后台域名>/guiye-track.js" data-endpoint="https://<后台域名>/api/analytics/collect"></script>`}
               </code>
+              <br />
+              商品详情页再标一个 <code>&lt;body data-gy-product=&quot;商品ID&quot;&gt;</code>，
+              单品漏斗和平均停留就有数据了。
             </div>
           </div>
         </Card>

@@ -17,6 +17,14 @@
  * 自动采集：page_view、page_leave（带停留秒数）、SPA 路由切换。
  * 手动埋点：window.guiye.track('add_cart', { product_id: 'p-1' })
  *
+ * 商品详情页请标出当前商品，page_view / page_leave 会自动带上它 ——
+ * 后台「单品分析」的平均停留就靠这个：
+ *   <body data-gy-product="sample-p-1">
+ * 或者 <meta name="gy-product" content="sample-p-1">
+ *
+ * 地域不在这里采集：浏览器拿不到，也不该为此索要定位权限。
+ * 服务端会从托管商的请求头（Vercel / Cloudflare）补上国家、省份、城市。
+ *
  * 不使用 Cookie；visitor_id 存 localStorage，session_id 存 sessionStorage。
  */
 (function () {
@@ -66,6 +74,23 @@
     if (w < 768 && touch) return "mobile";
     if (w < 1180 && touch) return "tablet";
     return "desktop";
+  }
+
+  /**
+   * 当前页面对应的商品 id。商品详情页在 <body data-gy-product> 或
+   * <meta name="gy-product"> 里标出来即可 —— page_view / page_leave 会自动带上，
+   * 后台的单品停留时长依赖它。以前 page_leave 从不带 product_id，
+   * 于是「平均停留」永远是空的。
+   */
+  function currentProduct() {
+    try {
+      var b = document.body && document.body.getAttribute("data-gy-product");
+      if (b) return b;
+      var m = document.querySelector('meta[name="gy-product"]');
+      return (m && m.getAttribute("content")) || null;
+    } catch (_e) {
+      return null;
+    }
   }
 
   /** 优先看 utm_source，其次按 referrer 归类；都没有算直接访问。 */
@@ -129,6 +154,9 @@
       device: device(),
     };
     if (src) e.source = src;
+    var pid = currentProduct();
+    if (pid) e.product_id = pid;
+    // 显式传入的 props 优先于页面上标注的商品
     if (props) for (var k in props) if (Object.prototype.hasOwnProperty.call(props, k)) e[k] = props[k];
     queue.push(e);
 

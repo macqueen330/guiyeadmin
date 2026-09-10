@@ -12,14 +12,13 @@ import {
   str,
   type ActionResult,
 } from "@/lib/actions/common";
-import { canActDirectly } from "@/lib/data/approvals";
 import { loadSettings } from "@/lib/data/settings";
 import { getDb } from "@/lib/data/db";
 import { getCurrentAdmin } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
 import { getFollowUps, getPointsLedger } from "@/lib/data/queries";
 import type { CustomerFollowUp, PointsEntry } from "@/lib/types";
-import { buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
+import { EXPORT_CAP, assertExportAllowed, assertNotTruncated, buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
 
 // 客户中心（用户）的写入路径。
 //
@@ -469,15 +468,12 @@ export async function exportCustomersAction(
         .select(COLS.map((c) => c.key).join(","))
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
-        .limit(10000);
+        .limit(EXPORT_CAP + 1);
       if (error) throw new Error(`导出失败：${error.message}`);
       const rows = (data ?? []) as unknown as Record<string, unknown>[];
+      assertNotTruncated(rows.length);
 
-      const settings = await loadSettings();
-      if (rows.length > settings.security.exportApprovalRows) {
-        const gate = await canActDirectly(me.level, "export_customers", rows.length);
-        if (!gate.allowed) throw new Error(gate.reason ?? "导出行数超过阈值，需要审批");
-      }
+      await assertExportAllowed(me.level, "export_customers", rows.length);
       return { csv: buildCsv(rows, COLS), filename: csvFilename("customers") };
     },
   );

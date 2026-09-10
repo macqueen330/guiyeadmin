@@ -90,9 +90,22 @@ export function ProductRanking({ rows, limit }: { rows: ProductRank[]; limit?: n
               <span>销量 {fmtNumber(p.units)}</span>
               <span>·</span>
               <span>订单 {fmtNumber(p.orders)}</span>
-              <span style={{ marginLeft: "auto", fontWeight: 600, color: p.growth >= 0 ? "#16894f" : "#c0392b" }}>
-                环比 {p.growth >= 0 ? "+" : ""}
-                {p.growth.toFixed(1)}%
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontWeight: 600,
+                  color:
+                    p.growth === null
+                      ? "var(--muted)"
+                      : p.growth >= 0
+                        ? "#16894f"
+                        : "#c0392b",
+                }}
+              >
+                {/* 上月没卖过的商品没有可比基数，显示「新品」而不是编一个 +0.0% 出来 */}
+                {p.growth === null
+                  ? "新品"
+                  : `环比 ${p.growth >= 0 ? "+" : ""}${p.growth.toFixed(1)}%`}
               </span>
             </div>
           </div>

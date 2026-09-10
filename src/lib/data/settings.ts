@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
-import { getDb, getServiceDb } from "./db";
+import { getDb, getServiceDb, DataReadError, recordReadFailure } from "./db";
 import {
   DEFAULT_SETTINGS,
   SETTING_KEYS,
@@ -24,6 +24,9 @@ async function build(client: Awaited<ReturnType<typeof getDb>>): Promise<Setting
   const merged = structuredClone(DEFAULT_SETTINGS) as unknown as Mutable;
   if (!client) return merged as unknown as Settings;
   const { data, error } = await client.from("app_settings").select("key,value");
+  // 配置读不到时回落到 DEFAULT_SETTINGS —— 这是有意的：阈值和标签缺失不该让
+  // 整个控制台打不开。但失败要登记，否则「配置表读不到」会被当成「用的是默认值」。
+  if (error) recordReadFailure("app_settings", error.message);
   if (error || !data) return merged as unknown as Settings;
   for (const row of data as { key: string; value: unknown }[]) {
     applyRow(merged, row.key, row.value);
@@ -46,7 +49,10 @@ export async function listSettingRows(category?: string): Promise<AppSetting[]> 
   let q = sb.from("app_settings").select("*").order("category").order("key");
   if (category) q = q.eq("category", category);
   const { data, error } = await q;
-  if (error || !data) return [];
+  // 系统设置页要展示的原始行：这里读不到必须报错。显示成「没有配置项」
+  // 会让管理员以为要从头建一遍。
+  if (error) throw new DataReadError("app_settings", error.message);
+  if (!data) return [];
   return data as AppSetting[];
 }
 

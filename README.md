@@ -84,8 +84,9 @@ npm run db:check               # 校验表 / 函数 / 时间列类型，并确�
 | 8 | `supabase/migrations/0008_rls_lockdown.sql` | **收紧 RLS**：anon / authenticated 对所有业务表 0 条策略 |
 | 9 | `supabase/migrations/0009_id_defaults.sql` | **必须执行**：给 0001/0002 建的 13 张表补主键默认值。不执行则「新建客户 / 新建订单 / 新建商品 / 新增仓库 / 登记发货 / 登记收款 / 发起退款」全部会因 `id` 非空约束失败 |
 | 10 | `supabase/migrations/0010_source_and_web_uniques.sql` | 订单来源不再由下单渠道硬猜（后台代下单不再被记成经销商）；新增 `gy_web_uniques()` 供官网独立访客窗口去重 |
-| 11 | `supabase/seed_reference.sql` | **必须执行**：字典、系统配置、价格档位、会员等级、支付渠道、承运商、审批规则、角色等基础配置 |
-| 12 | `supabase/seed_samples.sql` | **可选**：几条演示用的商品 / 客户 / 订单 / 支付 / 运单 + 30 天官网埋点，全部以 `sample-` 开头 |
+| 11 | `supabase/migrations/0011_web_timezone_and_uniques.sql` | **官网数据口径**：日汇总改按 `analytics.tz_offset_hours` 切天（原来按 UTC，和前台差 8 小时）；来源 / 设备 / 地域 / 页面改成窗口内单归因去重（原来按天相加，回访客重复计数）；新增 `gy_rollup_web_range()` 补算入口与 `web_rollup_runs` 运行日志 |
+| 12 | `supabase/seed_reference.sql` | **必须执行**：字典、系统配置、价格档位、会员等级、支付渠道、承运商、审批规则、角色等基础配置 |
+| 13 | `supabase/seed_samples.sql` | **可选**：几条演示用的商品 / 客户 / 订单 / 支付 / 运单 + 30 天官网埋点，全部以 `sample-` 开头 |
 
 - 样例数据随时可以清掉：执行 `supabase/clean_samples.sql`（只删 `sample-%`，真实数据不受影响）。
 - 需要彻底重来：`supabase/reset.sql`（**会删掉所有表**）。
@@ -204,10 +205,26 @@ npm run admin:create -- --email admin@guiye.com --name 你的名字 --level L1
 ```
 
 自动采集页面浏览、停留时长（含 SPA 路由切换）、设备与来源（utm_source 优先，
-其次按 referrer 归类）。业务事件两种写法：
+其次按 referrer 归类）。
+
+**访问地域不由脚本采集**（浏览器拿不到，也不该为此索要定位权限）：服务端从托管商
+的请求头推导 —— Vercel 的 `x-vercel-ip-country` / `-country-region` / `-city`，
+Cloudflare 的 `cf-ipcountry`。两者都没有时地域留空，界面显示空态而不是编一个地名。
+
+**跨域白名单要把主域和 www 都写上**：`ANALYTICS_ALLOWED_ORIGIN` 逗号分隔可写多个。
+只写主域的话，`www.` 子域的上报会被浏览器全部拦下，而后台只会显示「零流量」。
+
+业务事件两种写法：
 
 ```html
 <a data-gy-event="product_click" data-gy-product="sku-001">看看这款</a>
+```
+
+商品详情页请把当前商品标出来，`page_view` / `page_leave` 会自动带上它 ——
+后台「单品分析」的平均停留就靠这个：
+
+```html
+<body data-gy-product="sku-001">          <!-- 或 <meta name="gy-product" content="sku-001"> -->
 ```
 ```js
 window.guiye.track("add_cart", { product_id: "sku-001" });
@@ -287,6 +304,7 @@ npm run e2e:interact   # 真实点击写操作，再回数据库核对副作用
 npm run e2e:export     # 7 个 CSV 导出：真下载、解析文件、对数
 npm run e2e:controls   # 编辑回显、逐字段回写、高级筛选、搜索、批量操作
 npm run e2e:tracker    # 起一个模拟官网，验证埋点脚本→采集端点→汇总表全链路与触发器
+npm run e2e:truth      # 数据真实性回归：读不到必须说读不到、口径自洽、承诺的管控真的生效
 ```
 
 `e2e:interact` 覆盖：登录与会话落库、新建客户、新建订单（单号序列 / 状态派生 /

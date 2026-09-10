@@ -29,6 +29,11 @@ function Delta({ v }: { v: number | null }) {
 
 export function WebViews({ data, compact = false }: { data: WebViewsSummary; compact?: boolean }) {
   const hasData = data.pvTotal > 0;
+  // 埋点明细超出保留期时，独立访客拿不到窗口去重值，只能把每日 UV 相加 ——
+  // 回访客会被重复计数。官网数据页一直标注这件事，首页以前不标。
+  const uvNote = data.uvExact
+    ? null
+    : "独立访客为各日相加（埋点明细已超出保留期，回访客会被重复计数）";
 
   const cells: { label: string; pv: number; sub: React.ReactNode }[] = [
     {
@@ -36,7 +41,8 @@ export function WebViews({ data, compact = false }: { data: WebViewsSummary; com
       pv: data.pvToday,
       sub: (
         <>
-          独立访客 {fmtNumber(data.uvToday)} · 较昨日 <Delta v={data.pvTodayDelta} />
+          阅览量较昨日 <Delta v={data.pvTodayDelta} /> · 独立访客{" "}
+          {fmtNumber(data.uvToday)}
         </>
       ),
     },
@@ -45,7 +51,8 @@ export function WebViews({ data, compact = false }: { data: WebViewsSummary; com
       pv: data.pvMonth,
       sub: (
         <>
-          独立访客 {fmtNumber(data.uvMonth)} · 较上一周期 <Delta v={data.pvMonthDelta} />
+          阅览量较上一周期 <Delta v={data.pvMonthDelta} /> · 独立访客{" "}
+          {fmtNumber(data.uvMonth)}{data.uvExact ? "" : "（每日相加）"}
         </>
       ),
     },
@@ -54,7 +61,7 @@ export function WebViews({ data, compact = false }: { data: WebViewsSummary; com
       pv: data.pvTotal,
       sub: (
         <>
-          独立访客 {fmtNumber(data.uvTotal)} ·{" "}
+          独立访客 {fmtNumber(data.uvTotal)}{data.uvExact ? "" : "（每日相加）"} ·{" "}
           {data.since ? `${fmtDate(data.since)} 起` : "尚无埋点数据"}
         </>
       ),
@@ -109,7 +116,8 @@ export function WebViews({ data, compact = false }: { data: WebViewsSummary; com
           </div>
         ) : (
           <span style={{ fontSize: 12, color: "var(--muted)" }}>
-            尚未收到官网埋点。把 <code>/api/analytics/collect</code> 接到官网后，这里会显示真实 PV / UV。
+            尚未收到官网埋点。在官网 <code>&lt;/body&gt;</code> 前加一行
+            <code>&lt;script defer src=&quot;/guiye-track.js&quot;&gt;</code> 即可，这里会显示真实 PV / UV。
           </span>
         )}
       </div>
@@ -176,13 +184,22 @@ export function WebViews({ data, compact = false }: { data: WebViewsSummary; com
               </span>
             </div>
           ))}
+          {uvNote && (
+            <p style={{ margin: "10px 4px 0", fontSize: 11.5, color: "var(--muted)" }}>
+              {uvNote}
+            </p>
+          )}
         </div>
       ) : (
         <div style={{ padding: "26px 4px", fontSize: 12.5, color: "var(--muted)", lineHeight: 1.8 }}>
           尚未收到官网埋点数据。
           <br />
-          在官网里把浏览与转化事件 POST 到 <code>/api/analytics/collect</code>，
-          汇总结果会自动出现在这里与「官网数据」页。
+          在官网 <code>&lt;/body&gt;</code> 前加一行埋点脚本即可，浏览与转化事件会自动上报，
+          汇总结果出现在这里与「官网数据」页：
+          <br />
+          <code style={{ fontSize: 11.5 }}>
+            {`<script defer src="https://<后台域名>/guiye-track.js"></script>`}
+          </code>
         </div>
       )}
     </div>

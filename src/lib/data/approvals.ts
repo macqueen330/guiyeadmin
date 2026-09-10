@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
-import { getDb, num } from "./db";
+import { getDb, num, DataReadError } from "./db";
 import type { AdminLevel, ApprovalRequest, ApprovalRule } from "@/lib/types";
 
 // 审批阈值判定。
@@ -19,7 +19,8 @@ export const listApprovalRules = cache(async (): Promise<ApprovalRule[]> => {
     .eq("enabled", true)
     .order("action_key")
     .order("min_amount");
-  if (error || !data) return [];
+  if (error) throw new DataReadError("approval_rules", error.message);
+  if (!data) return [];
   return (data as Record<string, unknown>[]).map((r) => ({
     ...(r as unknown as ApprovalRule),
     min_amount: num(r.min_amount),
@@ -125,11 +126,12 @@ export async function decideApprovalRequest(
   const sb = await getDb();
   if (!sb) throw new Error("数据库未配置");
 
-  const { data: row } = await sb
+  const { data: row , error: rowErr } = await sb
     .from("approval_requests")
     .select("required_level,status")
     .eq("id", id)
     .maybeSingle();
+  if (rowErr) throw new DataReadError("approval_requests", rowErr.message);
   if (!row) throw new Error("审批单不存在");
   if (row.status !== "pending") throw new Error("该审批单已处理");
   if (LEVEL_RANK[approver.level] < LEVEL_RANK[String(row.required_level) as AdminLevel]) {

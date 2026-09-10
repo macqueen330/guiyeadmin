@@ -12,8 +12,7 @@ import {
 } from "@/lib/actions/common";
 import { canActDirectly, createApprovalRequest } from "@/lib/data/approvals";
 import { getCurrentAdmin } from "@/lib/auth/context";
-import { loadSettings } from "@/lib/data/settings";
-import { buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
+import { EXPORT_CAP, assertExportAllowed, assertNotTruncated, buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
 
 // 订单中心的写入路径。原来这个模块里 13 个可点控件（新建订单、5 个订单类型、
 // 6 个批量操作、行内「收款确认 / 处理异常 / 发货」）没有一个带 onClick，
@@ -555,16 +554,13 @@ export async function exportOrdersAction(
         .from("orders")
         .select(COLS.map((c) => c.key).join(","))
         .order("created_at", { ascending: false })
-        .limit(5000);
+        .limit(EXPORT_CAP + 1);
       if (error) throw new Error(`导出失败：${error.message}`);
       const rows = (data ?? []) as unknown as Record<string, unknown>[];
-
+      assertNotTruncated(rows.length);
       // 超过阈值的导出需要审批（security.export_approval_rows）。
-      const { security } = await loadSettings();
-      if (rows.length > security.exportApprovalRows) {
-        const gate = await canActDirectly(me.level, "export_orders", rows.length);
-        if (!gate.allowed) throw new Error(gate.reason ?? "导出行数超过阈值，需要审批");
-      }
+      // 七个导出统一走 assertExportAllowed()，不再各写一份。
+      await assertExportAllowed(me.level, "export_orders", rows.length);
 
       return { csv: buildCsv(rows, COLS), filename: csvFilename("orders") };
     },

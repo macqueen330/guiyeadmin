@@ -724,7 +724,8 @@ export interface ProductRank {
   orders: number;
   /** 相对榜首的条宽 0–100，由取数层派生，不入库 */
   pct: number;
-  growth: number;
+  /** 环比。上月没有可比基数时是 null（显示「新品」），不是 0。 */
+  growth: number | null;
 }
 
 export interface RegionRank {
@@ -833,6 +834,13 @@ export interface WebViewsSummary {
   pvTotal: number;
   uvTotal: number;
   since: string | null;
+  /**
+   * 独立访客是不是窗口内去重的真值。
+   * 埋点明细超出保留期时拿不到去重值，会回落到「每日 UV 相加」（回访客重复计数）——
+   * 官网数据页一直用 uvExact 老实标注这件事，首页卡片以前没有这个字段，
+   * 同样的降级数字在首页不带任何说明。
+   */
+  uvExact: boolean;
 }
 
 export interface ProductAnalytics {

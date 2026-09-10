@@ -13,7 +13,7 @@ import {
 } from "@/lib/actions/common";
 import { canActDirectly, createApprovalRequest } from "@/lib/data/approvals";
 import { getCurrentAdmin } from "@/lib/auth/context";
-import { buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
+import { EXPORT_CAP, assertExportAllowed, assertNotTruncated, buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
 
 // 商品与库存的写入路径。
 //
@@ -410,7 +410,7 @@ export async function exportInventoryAction(
         detail: `导出库存 ${r.filename}`,
       }),
     },
-    async ({ sb }) => {
+    async ({ sb, me }) => {
       const COLS: CsvColumn<Record<string, unknown>>[] = [
         { key: "sku_code", label: "SKU" },
         { key: "product_name", label: "商品名称" },
@@ -423,9 +423,13 @@ export async function exportInventoryAction(
       const { data, error } = await sb
         .from("inventory_view")
         .select(COLS.map((c) => c.key).join(","))
-        .limit(10000);
+        .limit(EXPORT_CAP + 1);
       if (error) throw new Error(`导出失败：${error.message}`);
       const rows = (data ?? []) as unknown as Record<string, unknown>[];
+      assertNotTruncated(rows.length);
+      // 安全策略页承诺「单次导出超过 N 行需审批」—— 这里以前没判，
+      // 于是那条绿色的「已生效」对本模块是假的。
+      await assertExportAllowed(me.level, "export_inventory", rows.length);
       return { csv: buildCsv(rows, COLS), filename: csvFilename("inventory") };
     },
   );

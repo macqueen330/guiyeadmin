@@ -12,7 +12,7 @@ import type { ShipmentEvent } from "@/lib/types";
 import { getDb } from "@/lib/data/db";
 import { getCurrentAdmin } from "@/lib/auth/context";
 import { can } from "@/lib/auth/permissions";
-import { buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
+import { EXPORT_CAP, assertExportAllowed, assertNotTruncated, buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
 
 // 仓储物流的写入路径。
 //
@@ -406,7 +406,7 @@ export async function exportShipmentsAction(
       success: (r) => `已生成 ${r.filename}`,
       audit: (r) => ({ action: "export_shipments", module: "仓储物流", detail: `导出 ${r.filename}` }),
     },
-    async ({ sb }) => {
+    async ({ sb, me }) => {
       const COLS: CsvColumn<Record<string, unknown>>[] = [
         { key: "order_no", label: "订单号" },
         { key: "carrier", label: "承运商" },
@@ -421,9 +421,13 @@ export async function exportShipmentsAction(
       const { data, error } = await sb
         .from("shipments")
         .select(COLS.map((c) => c.key).join(","))
-        .limit(10000);
+        .limit(EXPORT_CAP + 1);
       if (error) throw new Error(`导出失败：${error.message}`);
       const rows = (data ?? []) as unknown as Record<string, unknown>[];
+      assertNotTruncated(rows.length);
+      // 安全策略页承诺「单次导出超过 N 行需审批」—— 这里以前没判，
+      // 于是那条绿色的「已生效」对本模块是假的。
+      await assertExportAllowed(me.level, "export_shipments", rows.length);
       return { csv: buildCsv(rows, COLS), filename: csvFilename("shipments") };
     },
   );

@@ -176,7 +176,7 @@ export function WebTrend({
           }}
         >
           <span style={{ fontWeight: 600, color: "#5b6470" }}>该区间内没有埋点数据</span>
-          <span>把官网事件 POST 到 /api/analytics/collect 后，这里会显示真实曲线。</span>
+          <span>官网接入 guiye-track.js 后，这里会显示真实曲线。</span>
         </div>
       </div>
     );

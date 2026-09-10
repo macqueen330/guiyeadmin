@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
-import { getDb, num } from "./db";
+import { getDb, num, DataReadError, recordReadFailure } from "./db";
 import { loadSettings } from "./settings";
 import { businessDateKey, businessDayStart } from "./metrics";
 import type {
@@ -113,7 +113,8 @@ async function fetchDaily(from: string, to: string): Promise<DailyRow[]> {
     .gte("stat_date", from)
     .lte("stat_date", to)
     .order("stat_date");
-  if (error || !data) return [];
+  if (error) throw new DataReadError("web_analytics_daily", error.message);
+  if (!data) return [];
   return (data as Record<string, unknown>[]).map((r) => ({
     stat_date: String(r.stat_date),
     pv: num(r.pv),
@@ -163,7 +164,13 @@ async function uniquesIn(
   const sb = await getDb();
   if (!sb) return null;
   const { data, error } = await sb.rpc("gy_web_uniques", { p_from: from, p_to: to });
-  if (error || !data) return null;
+  // 去重拿不到时回落到每日相加（调用方会用 uvExact 标注口径），所以这里不抛；
+  // 但失败必须登记，否则「去重函数挂了」会被当成「本来就没有明细」。
+  if (error) {
+    recordReadFailure("gy_web_uniques", error.message);
+    return null;
+  }
+  if (!data) return null;
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) return null;
   const visitors = num((row as Record<string, unknown>).visitors);
@@ -228,6 +235,7 @@ export const getWebViews = cache(async (): Promise<WebViewsSummary> => {
     pvTotal: 0,
     uvTotal: 0,
     since: null,
+    uvExact: true,
   };
   if (!sb) return empty;
 
@@ -284,6 +292,9 @@ export const getWebViews = cache(async (): Promise<WebViewsSummary> => {
     pvTotal: every.reduce((s, r) => s + r.pv, 0),
     uvTotal: uTotal?.visitors ?? every.reduce((s, r) => s + r.uv, 0),
     since: every[0]?.d ?? null,
+    // 两个窗口只要有一个拿不到去重值，整张卡就得标成「每日相加」——
+    // 不能让一半准一半不准还不说明。
+    uvExact: uMonth !== null && (every.length === 0 || uTotal !== null),
   };
 });
 
@@ -358,108 +369,86 @@ export const getPageStats = cache(async (days = 30): Promise<PageStat[]> => {
   const sb = await getDb();
   if (!sb) return [];
   const { from, to } = await dateWindow(days);
-  const { data } = await sb
-    .from("web_page_stats")
-    .select("*")
-    .gte("stat_date", from)
-    .lte("stat_date", to);
+  // 同样按窗口去重：原来是把每日 uv 相加，单个页面的「独立访客」
+  // 因此可能大于整站的独立访客数。
+  const { data, error } = await sb.rpc("gy_web_page_uniques", { p_from: from, p_to: to });
+  if (error) throw new DataReadError("gy_web_page_uniques", error.message);
 
-  const agg = new Map<
-    string,
-    { page: string; pv: number; uv: number; stay: number; bounce: number; sessions: number }
-  >();
-  for (const r of (data ?? []) as Record<string, unknown>[]) {
-    const path = String(r.page_path);
-    const cur =
-      agg.get(path) ??
-      { page: String(r.page_title ?? path), pv: 0, uv: 0, stay: 0, bounce: 0, sessions: 0 };
-    cur.pv += num(r.pv);
-    cur.uv += num(r.uv);
-    cur.stay += num(r.stay_seconds_total);
-    cur.bounce += num(r.bounce_sessions);
-    cur.sessions += num(r.sessions);
-    agg.set(path, cur);
-  }
-  return [...agg.values()]
-    .sort((a, b) => b.pv - a.pv)
-    .map((r) => ({
-      page: r.page,
-      pv: r.pv,
-      uv: r.uv,
-      avg_stay_seconds: r.pv ? r.stay / r.pv : 0,
-      bounce: r.sessions ? (r.bounce / r.sessions) * 100 : 0,
-    }));
+  return ((data ?? []) as Record<string, unknown>[])
+    .map((r) => {
+      const pv = num(r.pv);
+      const sessions = num(r.sessions);
+      return {
+        page: String(r.page_title ?? r.page_path),
+        pv,
+        uv: num(r.uv),
+        avg_stay_seconds: pv ? num(r.stay_seconds_total) / pv : 0,
+        bounce: sessions ? (num(r.bounce_sessions) / sessions) * 100 : 0,
+      };
+    })
+    .sort((a, b) => b.pv - a.pv);
 });
 
-export const getTrafficSources = cache(async (days = 30): Promise<ChannelSlice[]> => {
+/**
+ * 按维度的窗口去重（单归因）。取代原来「把每日 visitors 相加」的算法。
+ *
+ * 旧算法里回访客每天都会被数一次，于是同一个页面上会出现
+ * 「独立访客 150」和「来源合计 386」这种不可能同时为真的两个数。
+ * 现在每个访客按首次触点只归一个桶，各桶相加正好等于窗口内的独立访客数。
+ */
+async function dimensionUniques(
+  from: string,
+  to: string,
+  dim: "source" | "device" | "city",
+): Promise<{ key: string; visitors: number; sessions: number; clicks: number; orders: number }[]> {
   const sb = await getDb();
   if (!sb) return [];
-  const { from, to } = await dateWindow(days);
-  const { data } = await sb
-    .from("web_traffic_sources")
-    .select("source_key,visitors")
-    .gte("stat_date", from)
-    .lte("stat_date", to);
+  const { data, error } = await sb.rpc("gy_web_dimension_uniques", {
+    p_from: from,
+    p_to: to,
+    p_dim: dim,
+  });
+  if (error) throw new DataReadError("gy_web_dimension_uniques", error.message);
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    key: String(r.key),
+    visitors: num(r.visitors),
+    sessions: num(r.sessions),
+    clicks: num(r.clicks),
+    orders: num(r.orders),
+  }));
+}
 
-  const agg = new Map<string, number>();
-  for (const r of (data ?? []) as Record<string, unknown>[]) {
-    const k = String(r.source_key);
-    agg.set(k, (agg.get(k) ?? 0) + num(r.visitors));
-  }
-  return [...agg.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([key, val], i) => ({
-      label: SOURCE_LABELS[key] ?? key,
-      val,
-      color: SOURCE_COLORS[key] ?? FALLBACK_PALETTE[i % FALLBACK_PALETTE.length],
+export const getTrafficSources = cache(async (days = 30): Promise<ChannelSlice[]> => {
+  const { from, to } = await dateWindow(days);
+  const rows = await dimensionUniques(from, to, "source");
+  return rows
+    .sort((a, b) => b.visitors - a.visitors)
+    .map((r, i) => ({
+      label: SOURCE_LABELS[r.key] ?? r.key,
+      val: r.visitors,
+      color: SOURCE_COLORS[r.key] ?? FALLBACK_PALETTE[i % FALLBACK_PALETTE.length],
     }));
 });
 
 export const getDeviceSplit = cache(async (days = 30): Promise<ChannelSlice[]> => {
-  const sb = await getDb();
-  if (!sb) return [];
   const { from, to } = await dateWindow(days);
-  const { data } = await sb
-    .from("web_device_stats")
-    .select("device,visitors")
-    .gte("stat_date", from)
-    .lte("stat_date", to);
-
-  const agg = new Map<string, number>();
-  for (const r of (data ?? []) as Record<string, unknown>[]) {
-    const k = String(r.device);
-    agg.set(k, (agg.get(k) ?? 0) + num(r.visitors));
-  }
-  return [...agg.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([key, val], i) => ({
-      label: DEVICE_LABELS[key] ?? key,
-      val,
-      color: DEVICE_COLORS[key] ?? FALLBACK_PALETTE[i % FALLBACK_PALETTE.length],
+  const rows = await dimensionUniques(from, to, "device");
+  return rows
+    .sort((a, b) => b.visitors - a.visitors)
+    .map((r, i) => ({
+      label: DEVICE_LABELS[r.key] ?? r.key,
+      val: r.visitors,
+      color: DEVICE_COLORS[r.key] ?? FALLBACK_PALETTE[i % FALLBACK_PALETTE.length],
     }));
 });
 
 export const getWebCities = cache(async (days = 30, limit = 8): Promise<WebCity[]> => {
-  const sb = await getDb();
-  if (!sb) return [];
   const { from, to } = await dateWindow(days);
-  const { data } = await sb
-    .from("web_region_stats")
-    .select("region_key,visitors,clicks,orders")
-    .eq("region_type", "city")
-    .gte("stat_date", from)
-    .lte("stat_date", to);
-
-  const agg = new Map<string, WebCity>();
-  for (const r of (data ?? []) as Record<string, unknown>[]) {
-    const k = String(r.region_key);
-    const cur = agg.get(k) ?? { name: k, visitors: 0, clicks: 0, orders: 0 };
-    cur.visitors += num(r.visitors);
-    cur.clicks += num(r.clicks);
-    cur.orders += num(r.orders);
-    agg.set(k, cur);
-  }
-  return [...agg.values()].sort((a, b) => b.visitors - a.visitors).slice(0, limit);
+  const rows = await dimensionUniques(from, to, "city");
+  return rows
+    .map((r) => ({ name: r.key, visitors: r.visitors, clicks: r.clicks, orders: r.orders }))
+    .sort((a, b) => b.visitors - a.visitors)
+    .slice(0, limit);
 });
 
 export const getOverallFunnel = cache(async (days = 30): Promise<FunnelStep[]> => {
@@ -478,23 +467,31 @@ export const getEventCounts = cache(async (days = 30): Promise<WebEventCount[]> 
   const sb = await getDb();
   if (!sb) return [];
   const settings = await loadSettings();
-  const since = businessDayStart(settings.analytics.tzOffsetHours, days - 1);
+  const tz = settings.analytics.tzOffsetHours;
+  const since = businessDayStart(tz, days - 1);
+  // 上界必须给。occurred_at 由客户端生成，一台时钟走快的浏览器就能把事件
+  // 写到未来 —— 只有 gte 的话「近 N 天」实际是「N 天前至永远」，
+  // 这个面板会和按天汇总的概览 KPI 对不上。
+  const until = businessDayStart(tz, -1);
 
-  const [{ data: types }, { data: events }] = await Promise.all([
+  const [types, events] = await Promise.all([
     sb.from("web_event_types").select("event_key,name,sort").order("sort"),
     sb
       .from("web_events")
       .select("event_key")
       .gte("occurred_at", since.toISOString())
+      .lt("occurred_at", until.toISOString())
       .limit(100000),
   ]);
+  if (types.error) throw new DataReadError("web_event_types", types.error.message);
+  if (events.error) throw new DataReadError("web_events", events.error.message);
 
   const counts = new Map<string, number>();
-  for (const e of (events ?? []) as { event_key: string }[]) {
+  for (const e of (events.data ?? []) as { event_key: string }[]) {
     counts.set(e.event_key, (counts.get(e.event_key) ?? 0) + 1);
   }
 
-  const known = ((types ?? []) as { event_key: string; name: string }[]).map((t) => ({
+  const known = ((types.data ?? []) as { event_key: string; name: string }[]).map((t) => ({
     event_key: t.event_key,
     name: t.name,
     count: counts.get(t.event_key) ?? 0,
@@ -530,7 +527,9 @@ export async function getProductWebDetail(
   const analytics = all.find((p) => p.id === productId) ?? null;
 
   const settings = await loadSettings();
-  const since = businessDayStart(settings.analytics.tzOffsetHours, days - 1).toISOString();
+  const tz = settings.analytics.tzOffsetHours;
+  const since = businessDayStart(tz, days - 1).toISOString();
+  const until = businessDayStart(tz, -1).toISOString(); // 同上：区间要有上界
 
   const [{ data: stayRows }, { data: itemRows }] = await Promise.all([
     sb
@@ -538,12 +537,14 @@ export async function getProductWebDetail(
       .select("value")
       .eq("product_id", productId)
       .eq("event_key", "page_leave")
-      .gte("occurred_at", since),
+      .gte("occurred_at", since)
+      .lt("occurred_at", until),
     sb
       .from("order_items")
       .select("qty,price,orders!inner(created_at,pay_status)")
       .eq("product_id", productId)
-      .gte("orders.created_at", since),
+      .gte("orders.created_at", since)
+      .lt("orders.created_at", until),
   ]);
 
   const stays = ((stayRows ?? []) as { value: unknown }[])
@@ -562,3 +563,95 @@ export async function getProductWebDetail(
 
   return { analytics, avgStaySeconds, revenue, units };
 }
+
+
+// ---------------------------------------------------------------------------
+// 埋点链路健康度
+//
+// 审计里最要紧的一条：以前后台没有任何地方能区分「官网没流量」和「链路断了」——
+// 跨域配错、汇总挂掉、表读不到，界面上全都长成同一句「暂无数据」。
+// 这里把 guiyecy.com → 采集端点 → 数据库 → 汇总 这条链路的实际状态摆出来。
+// ---------------------------------------------------------------------------
+
+export interface TrackerHealth {
+  /** 最后一次收到官网事件的时刻 */
+  lastEventAt: string | null;
+  /** 最近 24 小时的事件数 */
+  events24h: number;
+  /** 库里累计事件数 */
+  eventsTotal: number;
+  /** 最后一次日汇总 */
+  lastRollup: { statDate: string; ok: boolean; error: string | null; ranAt: string } | null;
+  /** 当前配置的跨域白名单（留空 = 允许所有来源） */
+  allowedOrigins: string[];
+  /** 是否要求上报携带 x-guiye-token */
+  tokenRequired: boolean;
+  /** 综合判断 */
+  status: "ok" | "stale" | "never" | "rollup_failed";
+}
+
+/** 超过这么久没有上报就认为链路可能断了。 */
+const STALE_HOURS = 24;
+
+export const getTrackerHealth = cache(async (): Promise<TrackerHealth> => {
+  const allowedOrigins = (process.env.ANALYTICS_ALLOWED_ORIGIN ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  const tokenRequired = Boolean(process.env.ANALYTICS_INGEST_TOKEN);
+
+  const sb = await getDb();
+  if (!sb) {
+    return {
+      lastEventAt: null, events24h: 0, eventsTotal: 0, lastRollup: null,
+      allowedOrigins, tokenRequired, status: "never",
+    };
+  }
+
+  const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
+  const [latest, recent, totalRes, rollup] = await Promise.all([
+    sb.from("web_events").select("occurred_at").order("occurred_at", { ascending: false }).limit(1),
+    sb.from("web_events").select("id", { count: "exact", head: true }).gte("occurred_at", since),
+    sb.from("web_events").select("id", { count: "exact", head: true }),
+    sb
+      .from("web_rollup_runs")
+      .select("stat_date,ok,error,ran_at")
+      .order("ran_at", { ascending: false })
+      .limit(1),
+  ]);
+  if (latest.error) throw new DataReadError("web_events", latest.error.message);
+  if (recent.error) throw new DataReadError("web_events", recent.error.message);
+  if (totalRes.error) throw new DataReadError("web_events", totalRes.error.message);
+  // 汇总日志表是 0011 才加的，旧库没有 —— 读不到不算故障，降级即可。
+  if (rollup.error) recordReadFailure("web_rollup_runs", rollup.error.message);
+
+  const lastEventAt =
+    ((latest.data ?? []) as { occurred_at: string }[])[0]?.occurred_at ?? null;
+  const rollupRow = ((rollup.data ?? []) as Record<string, unknown>[])[0];
+  const lastRollup = rollupRow
+    ? {
+        statDate: String(rollupRow.stat_date),
+        ok: rollupRow.ok === true,
+        error: rollupRow.error ? String(rollupRow.error) : null,
+        ranAt: String(rollupRow.ran_at),
+      }
+    : null;
+
+  const status: TrackerHealth["status"] = !lastEventAt
+    ? "never"
+    : lastRollup && !lastRollup.ok
+      ? "rollup_failed"
+      : Date.now() - new Date(lastEventAt).getTime() > STALE_HOURS * 3_600_000
+        ? "stale"
+        : "ok";
+
+  return {
+    lastEventAt,
+    events24h: recent.count ?? 0,
+    eventsTotal: totalRes.count ?? 0,
+    lastRollup,
+    allowedOrigins,
+    tokenRequired,
+    status,
+  };
+});

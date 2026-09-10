@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
-import { getDb } from "./db";
+import { getDb, DataReadError, recordReadFailure } from "./db";
 import { DEFAULT_DICT, DEFAULT_DICT_BUNDLE, mergeDict, type Dict } from "@/lib/dict";
 import type { DictEntry } from "@/lib/types";
 
@@ -13,6 +13,8 @@ export const loadDict = cache(async (): Promise<Dict> => {
     .from("dictionaries")
     .select("group_key,code,label,color,bg,sort,is_active")
     .order("sort");
+  // 同 loadSettings：字典是标签，读不到就用内置默认值，不拦住整个控制台。
+  if (error) recordReadFailure("dictionaries", error.message);
   if (error || !data || data.length === 0) return DEFAULT_DICT_BUNDLE;
   return mergeDict(DEFAULT_DICT, data as DictEntry[]);
 });
@@ -24,7 +26,8 @@ export async function listDictEntries(group?: string): Promise<DictEntry[]> {
   let q = sb.from("dictionaries").select("*").order("group_key").order("sort");
   if (group) q = q.eq("group_key", group);
   const { data, error } = await q;
-  if (error || !data) return [];
+  if (error) throw new DataReadError("dictionaries", error.message);
+  if (!data) return [];
   return data as DictEntry[];
 }
 

@@ -18,7 +18,7 @@ import { getCurrentAdmin } from "@/lib/auth/context";
 import { logAudit, actorFrom } from "@/lib/auth/audit";
 import { getGateway, providerFor, readinessFor, resolveCredentials } from "@/lib/payments/registry";
 import { getDb } from "@/lib/data/db";
-import { buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
+import { EXPORT_CAP, assertExportAllowed, assertNotTruncated, buildCsv, csvFilename, type CsvColumn } from "@/lib/csv";
 
 // 支付中心与财务结算的写入路径。
 //
@@ -544,13 +544,17 @@ async function exportCsv(
       success: (r) => `已生成 ${r.filename}`,
       audit: (r) => ({ action: auditAction, module: moduleName, detail: `导出 ${r.filename}` }),
     },
-    async ({ sb }) => {
+    async ({ sb, me }) => {
       const { data, error } = await sb
         .from(table)
         .select(columns.map((c) => c.key).join(","))
-        .limit(10000);
+        .limit(EXPORT_CAP + 1);
       if (error) throw new Error(`导出失败：${error.message}`);
       const rows = (data ?? []) as unknown as Record<string, unknown>[];
+      assertNotTruncated(rows.length);
+      // 支付流水、退款、结算单是最敏感的三份数据，以前恰恰是这三个没判审批阈值 ——
+      // 而安全策略页对「单次导出超过 N 行需审批」打的是绿色「已生效」。
+      await assertExportAllowed(me.level, auditAction, rows.length);
       return { csv: buildCsv(rows, columns), filename: csvFilename(filename) };
     },
   );

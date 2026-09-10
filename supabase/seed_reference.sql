@@ -249,6 +249,14 @@ insert into approval_rules
   ('stock_adjust','大批量库存调整', 100, null, 'L1', false, null,           6),
   ('export_customers','批量导出客户资料', 0, null, 'L1', false, '含手机号 / 邮箱', 7),
   ('export_orders',   '批量导出订单',     0, null, 'L1', false, '单次导出行数超过安全阈值', 8),
+  -- 这五条以前是缺的：动作里没判审批，规则表里也没有对应条目，
+  -- 而安全策略页对「单次导出超过 N 行需审批」打的是绿色「已生效」。
+  -- 支付流水 / 退款 / 结算单恰恰是最敏感的三份数据。
+  ('export_payments',   '批量导出支付流水', 0, null, 'L1', false, '含商户单号与金额',   9),
+  ('export_refunds',    '批量导出退款记录', 0, null, 'L1', false, null,                 10),
+  ('export_settlements','批量导出结算单',   0, null, 'L1', false, '对账与账期数据',     11),
+  ('export_shipments',  '批量导出发货单',   0, null, 'L2', false, '含收件地址',         12),
+  ('export_inventory',  '批量导出库存',     0, null, 'L2', false, null,                 13),
   ('order_amount_change','修改已完成订单金额', 0, null, 'L1', true, null,   8)
 on conflict (action_key, min_amount) do nothing;
 
